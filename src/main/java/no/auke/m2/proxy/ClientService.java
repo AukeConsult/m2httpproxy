@@ -13,7 +13,7 @@ import no.auke.p2p.m2.SocketListener;
 
 
 // proxy service 
-public class ClientService implements Runnable{
+public class ClientService implements Runnable {
 
 	private static final int PEER_PORT = 10;
 	

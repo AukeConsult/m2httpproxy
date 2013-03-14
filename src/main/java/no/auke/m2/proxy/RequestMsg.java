@@ -5,12 +5,12 @@ public class RequestMsg {
 	public int getSession() {
 		return session;
 	}
-	public byte[] getData() {
-		return httpcontent;
+	public byte[] getHttpData() {
+		return httpdata;
 	}
 
 	private int session=0;
-	private byte[] httpcontent;
+	private byte[] httpdata;
 	private int port=0;
 	private String host="";
 	
@@ -26,7 +26,7 @@ public class RequestMsg {
 		this.session=session;
 		this.host=host;
 		this.port=port;
-		this.httpcontent=httpcontent;
+		this.httpdata=httpcontent;
 	
 	}
 
@@ -39,4 +39,16 @@ public class RequestMsg {
 		return null;
 	}
 
+	public String getAddress() {
+		return host + ":" + String.valueOf(port);
+	}
+
+	public String getHost() {
+		return host;
+	}
+
+	public int getPort() {
+		return port;
+	}
+	
 }

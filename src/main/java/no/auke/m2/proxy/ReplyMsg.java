@@ -13,6 +13,7 @@ public class ReplyMsg {
 	}
 
 	private int session=0;
+	private int order=0;
 	private byte[] data; 
 	private boolean iscomplete=false;
 	
@@ -21,9 +22,10 @@ public class ReplyMsg {
 		return iscomplete;
 	}
 
-	public ReplyMsg(int session, boolean iscomplete, byte[] data) {
+	public ReplyMsg(int session, int order, boolean iscomplete, byte[] data) {
 		
 		this.session=session;
+		this.order=order;
 		this.data=data;
 		this.iscomplete=iscomplete;
 	
