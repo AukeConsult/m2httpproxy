@@ -1,4 +1,4 @@
-package no.auke.m2.proxy;
+package no.auke.m2.proxy.services;
 
 import java.util.ArrayList;
 import java.util.concurrent.ConcurrentHashMap;
@@ -6,6 +6,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import no.auke.m2.proxy.ServerParams;
 import no.auke.m2.proxy.dataelements.RequestMsg;
 import no.auke.m2.proxy.request.EndPointRequest;
 import no.auke.p2p.m2.PeerServer;

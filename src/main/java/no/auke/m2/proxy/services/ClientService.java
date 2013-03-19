@@ -1,4 +1,4 @@
-package no.auke.m2.proxy;
+package no.auke.m2.proxy.services;
 
 import java.io.IOException;
 import java.net.ServerSocket;
@@ -10,6 +10,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import no.auke.m2.proxy.ServerParams;
 import no.auke.m2.proxy.dataelements.ReplyMsg;
 import no.auke.m2.proxy.request.ClientRequest;
 import no.auke.p2p.m2.PeerServer;

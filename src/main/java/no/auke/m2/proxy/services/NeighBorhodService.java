@@ -1,7 +1,8 @@
-package no.auke.m2.proxy;
+package no.auke.m2.proxy.services;
 
 import java.util.concurrent.ConcurrentHashMap;
 
+import no.auke.m2.proxy.ServerParams;
 import no.auke.m2.proxy.dataelements.Neighbor;
 import no.auke.m2.proxy.dataelements.RequestMsg;
 import no.auke.p2p.m2.PeerServer;

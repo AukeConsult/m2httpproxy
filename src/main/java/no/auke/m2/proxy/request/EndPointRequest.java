@@ -8,9 +8,9 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import no.auke.m2.proxy.EndPointService;
 import no.auke.m2.proxy.dataelements.ReplyMsg;
 import no.auke.m2.proxy.dataelements.RequestMsg;
+import no.auke.m2.proxy.services.EndPointService;
 import no.auke.p2p.m2.general.BlockingQueue;
 
 public class EndPointRequest implements Runnable {

@@ -8,9 +8,9 @@ import java.net.Socket;
 import java.util.Random;
 import java.util.StringTokenizer;
 
-import no.auke.m2.proxy.ClientService;
 import no.auke.m2.proxy.dataelements.ReplyMsg;
 import no.auke.m2.proxy.dataelements.RequestMsg;
+import no.auke.m2.proxy.services.ClientService;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

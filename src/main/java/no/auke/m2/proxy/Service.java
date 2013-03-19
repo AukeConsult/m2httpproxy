@@ -3,6 +3,9 @@ package no.auke.m2.proxy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import no.auke.m2.proxy.services.ClientService;
+import no.auke.m2.proxy.services.EndPointService;
+import no.auke.m2.proxy.services.NeighBorhodService;
 import no.auke.p2p.m2.PeerServer;
 import no.auke.p2p.m2.agent.AgentInterface;
 import no.auke.p2p.m2.agent.NetAddress;
@@ -59,6 +62,7 @@ public class Service {
 												server.stopServer();
 												
 											}
+
 										}
 										);
 			
