@@ -4,11 +4,14 @@
 // You may study, use, modify, and distribute it for non-commercial purposes.
 // For any commercial use, see http://www.davidflanagan.com/javaexamples
 
+package examples.sometests;
+
 import java.io.*;
 import java.net.*;
 
-import no.auke.m2.tcpserver.IService;
-import no.auke.m2.tcpserver.Server;
+import examples.tcpserver.IService;
+import examples.tcpserver.Server;
+
 
 /**
  * This class uses the Server class to provide a multi-threaded server framework

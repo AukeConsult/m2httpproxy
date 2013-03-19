@@ -4,12 +4,13 @@
 // You may study, use, modify, and distribute it for non-commercial purposes.
 // For any commercial use, see http://www.davidflanagan.com/javaexamples
 
-package no.auke.m2.tcpserver;
+package examples.tcpserver;
 
 import java.io.*;
 import java.util.*;
 
-import no.auke.m2.tcpserver.examples.ControlService;
+import examples.tcpserver.services.ControlService;
+
 
 /**
  * This class is a generic framework for a flexible, multi-threaded server. It

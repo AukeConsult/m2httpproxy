@@ -1,3 +1,4 @@
+package examples.sometests;
 
 import java.net.*;
 import java.io.*;

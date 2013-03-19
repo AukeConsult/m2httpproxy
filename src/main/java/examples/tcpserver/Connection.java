@@ -1,4 +1,4 @@
-package no.auke.m2.tcpserver;
+package examples.tcpserver;
 
 import java.io.IOException;
 import java.io.InputStream;

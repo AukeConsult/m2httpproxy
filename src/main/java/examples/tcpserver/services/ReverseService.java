@@ -1,4 +1,4 @@
-package no.auke.m2.tcpserver.examples;
+package examples.tcpserver.services;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
@@ -9,7 +9,8 @@ import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 
-import no.auke.m2.tcpserver.IService;
+import examples.tcpserver.IService;
+
 
 
 /**
