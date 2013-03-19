@@ -1,4 +1,4 @@
-package no.auke.m2.proxy;
+package no.auke.m2.proxy.request;
 
 import java.io.BufferedReader;
 import java.io.DataOutputStream;
@@ -7,6 +7,10 @@ import java.io.InputStreamReader;
 import java.net.Socket;
 import java.util.Random;
 import java.util.StringTokenizer;
+
+import no.auke.m2.proxy.ClientService;
+import no.auke.m2.proxy.dataelements.ReplyMsg;
+import no.auke.m2.proxy.dataelements.RequestMsg;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -46,8 +50,7 @@ public class ClientRequest implements Runnable {
 			
 			} catch (IOException e) {
 
-				// TODO Auto-generated catch block
-				e.printStackTrace();
+				logger.warn("IO error sending to browser " + e.getMessage());
 			
 			}
 		
@@ -69,7 +72,7 @@ public class ClientRequest implements Runnable {
 				
 			} catch (IOException e) {
 				
-				e.printStackTrace();
+				logger.warn("IO error closing browser request " + e.getMessage());
 			
 			}	
 			
@@ -96,8 +99,13 @@ public class ClientRequest implements Runnable {
 
 		try {
 
-			replyClientStream = new DataOutputStream(tcp_socket.getOutputStream());
+			String browser_address = tcp_socket.getInetAddress().getHostAddress() + ":"+ String.valueOf(tcp_socket.getPort());
+			
+			if(logger.isDebugEnabled())
+				logger.debug("got browser request from address " + browser_address);
+
 			requestClientStream = new BufferedReader(new InputStreamReader(tcp_socket.getInputStream()));
+			replyClientStream = new DataOutputStream(tcp_socket.getOutputStream());
 
 			String inputLine;
 			
@@ -141,22 +149,42 @@ public class ClientRequest implements Runnable {
 			String url="";
 			int port=0;
 			byte[] data=null;
+			 
 			
-			RequestMsg request = new RequestMsg(service.getPeerServer().getClientid(), session, url, port, data);
+			String endpoint = service.getNeighborService().getRemoteEndPoint(browser_address);
 			
-			if(service.getPeerSocket().send(service.getRemote(tcp_socket.getLocalSocketAddress()), service.getPeerSocket().getPort(), request.getBytes())){
+			if(endpoint.isEmpty()) {
+
+				RequestMsg request = new RequestMsg(service.getPeerServer().getClientid(), session, url, port, data);
 				
+				if(service.getPeerSocket().send(service.getNeighborService().getRemoteEndPoint(browser_address), service.getPeerSocket().getPort(), request.getBytes())){
+					
+					
+				} else {
+					
+					service.getNeighborService().resetRemoteEndPoint(browser_address);
+					service.getNeighborService().setNotAlive(endpoint);
+					
+					// sending direct reply with error
+					
+					gotReply(new ReplyMsg(ReplyMsg.ErrCode.LOCAL_SEND_REMOTE,"error sending request to remote proxy"));
+					
+					// error sending
+					logger.warn("Error sending request to end point " + endpoint + " m2 error " + service.getPeerSocket().getLastMessage() );
+					
+				}
 				
 			} else {
 				
-				// error sending
+				
 				
 			}
+			
 			
 
 		} catch (IOException e) {
 			
-			e.printStackTrace();
+			logger.warn("IO error reading browser request " + e.getMessage());
 		
 		}		
 	

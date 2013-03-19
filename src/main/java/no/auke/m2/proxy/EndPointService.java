@@ -1,12 +1,13 @@
 package no.auke.m2.proxy;
 
-import java.net.SocketAddress;
 import java.util.ArrayList;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import no.auke.m2.proxy.dataelements.RequestMsg;
+import no.auke.m2.proxy.request.EndPointRequest;
 import no.auke.p2p.m2.PeerServer;
 import no.auke.p2p.m2.SocketListener;
 
@@ -15,10 +16,9 @@ public class EndPointService implements Runnable {
 	
 	private static final Logger logger = LoggerFactory.getLogger(EndPointService.class);	
 
-	private static final int PEER_PORT = 10;
-	
 	private PeerServer server;
-	
+	private NeighBorhodService neighbors=null;
+
 	public PeerServer getPeerServer() {
 		return server;
 	}
@@ -30,25 +30,26 @@ public class EndPointService implements Runnable {
 
 	private ConcurrentHashMap<String,EndPointRequest> requests; 
 	
-	private String defaultEndPoint;
-	
-	public EndPointService (PeerServer server, String defaultEndPoint) {
+	public EndPointService (PeerServer server, NeighBorhodService neighbors) {
 				
 		this.server = server;
-		this.defaultEndPoint=defaultEndPoint;
-		
+		this.neighbors=neighbors;
+
 		final EndPointService me = this;
 		
-		peer_socket = server.open(PEER_PORT, new SocketListener(){
+		
+		peer_socket = this.server.open(ServerParams.HTTP_SERVICE_PORT, new SocketListener(){
 			
-			
-
 			@Override
 			public void onIncomming(byte[] buffer) {
 
 				RequestMsg msg = new RequestMsg(buffer);
-				
+
+		    	logger.debug(" > request message " + msg.getReplyTo() + " for " + msg.getAddress());
+
 				if(!requests.containsKey(msg.getAddress())) {
+					
+					me.neighbors.addNeighbor(msg);
 					
 					// open a request session for each different host endpoint
 					
@@ -64,16 +65,10 @@ public class EndPointService implements Runnable {
 				
 			}});
 
-    	System.out.println("Started endpoint");
+    	logger.info("Started endpoint service");
             
 		
 	}	
-	
-	// get a remote party
-	public String getRemote(SocketAddress localSocketAddress) {
-
-		return defaultEndPoint;
-	}
 
 	@Override
 	public void run() {

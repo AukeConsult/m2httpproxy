@@ -3,6 +3,8 @@ package no.auke.m2.proxy;
 import java.util.Arrays;
 import java.util.Random;
 
+import no.auke.m2.proxy.dataelements.RequestMsg;
+
 import junit.framework.TestCase;
 
 public class RequestMsgTest extends TestCase {

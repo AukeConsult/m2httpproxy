@@ -1,10 +1,22 @@
-package no.auke.m2.proxy;
+package no.auke.m2.proxy.dataelements;
 
 import java.util.List;
+
+import no.auke.m2.proxy.dataelements.ReplyMsg.ErrCode;
 import no.auke.util.ByteUtil;
 import no.auke.util.StringConv;
 
 public class ReplyMsg {
+	
+	public enum ErrCode {
+		
+		OK,
+		LOCAL_SEND_REMOTE,
+		LOCAL_REMOTE_TIMEOUT,
+		LOCAL_NO_REPLY_FROM_REMOTE,
+		REMOTE_NO_WEB_SERVER
+		
+	}
 	
 	public int getSession() {
 	
@@ -26,10 +38,17 @@ public class ReplyMsg {
 		
 		return iscomplete;
 	}
+
+	public ErrCode getErrcode() {
+
+		return errcode;
 	
+	}
+
 	private int session=0;
 	private int order=0;
 	private boolean iscomplete=false;
+	private ErrCode errcode=ErrCode.OK; 
 	private byte[] data; 
 	
 	public ReplyMsg(int session, int order, boolean iscomplete, byte[] data) {
@@ -40,6 +59,13 @@ public class ReplyMsg {
 		this.data=data;
 	
 	}
+	
+	// error message for request
+	public ReplyMsg(ErrCode errocode, String message) {
+		
+		data = StringConv.getBytes(String.valueOf(errocode) + " -> " + message);
+		
+	}
 
 	public ReplyMsg(byte[] data) {
 		
@@ -47,7 +73,8 @@ public class ReplyMsg {
         session = ByteUtil.getInt(subs.get(0));
         order = ByteUtil.getInt(subs.get(1));
         iscomplete = ByteUtil.getInt(subs.get(2)) == 1? true : false;
-        this.data = subs.get(3);
+        errcode = ErrCode.valueOf(StringConv.UTF8(subs.get(3)));
+        this.data = subs.get(4);
 		
 	}
 
@@ -58,6 +85,7 @@ public class ReplyMsg {
 				ByteUtil.getBytes(session, 4),
 				ByteUtil.getBytes(order, 4),
 				ByteUtil.getBytes(iscomplete ? 1: 0, 1),
+				StringConv.getBytes(errcode.toString()),
 				data
 
 			);

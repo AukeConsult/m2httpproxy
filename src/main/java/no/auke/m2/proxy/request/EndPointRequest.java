@@ -1,4 +1,4 @@
-package no.auke.m2.proxy;
+package no.auke.m2.proxy.request;
 
 import java.io.IOException;
 import java.net.Socket;
@@ -8,6 +8,9 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import no.auke.m2.proxy.EndPointService;
+import no.auke.m2.proxy.dataelements.ReplyMsg;
+import no.auke.m2.proxy.dataelements.RequestMsg;
 import no.auke.p2p.m2.general.BlockingQueue;
 
 public class EndPointRequest implements Runnable {
@@ -17,8 +20,14 @@ public class EndPointRequest implements Runnable {
 	private static final int BUFFER_SIZE = 32768;
 	private static final long MAX_INACTIVE = 60000; //(one minute) 
 
-	private EndPointService service;
+	private EndPointService endpointservice;
+	public EndPointService getEndpointService() {
+	
+		return endpointservice;
+	}
+
 	private long lastused=0;
+	
 	private int port=0;
 	private String host="";
 	
@@ -30,26 +39,26 @@ public class EndPointRequest implements Runnable {
 	
 	public EndPointRequest(EndPointService service, String host, int port) {		
 	
-		this.service=service;
-		this.host=host;
+		this.endpointservice=service;
+		this.host = host;
 		this.port=port;
 
-		isstopped.set(false);
+		isstopped.set(true);
 		outMsg = new BlockingQueue<RequestMsg>(1000);
 		
 		try {
 		
 			tcpsocket = new Socket(host, port);
+			isstopped.set(false);
 		
 		} catch (UnknownHostException e) {
 		
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		
+			logger.warn("unknown host " + getAddress() +  " error " + e.getMessage());
+
 		} catch (IOException e) {
-			
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+
+			logger.warn("IOException host " + getAddress() +  " error " + e.getMessage());
+
 		}
 	
 	}	
@@ -73,7 +82,10 @@ public class EndPointRequest implements Runnable {
 		try {
 		
 			while(!isstopped.get() && (msgOut = outMsg.take())!=null) {
-				
+
+				if(logger.isDebugEnabled())
+					logger.debug("handling request from " + msgOut.getReplyTo() +  " to " + getAddress());
+
 				lastused = System.currentTimeMillis();
 
 				try {
@@ -94,11 +106,10 @@ public class EndPointRequest implements Runnable {
 						
 						ReplyMsg msg = new ReplyMsg(msgOut.getSession(), cnt, index < BUFFER_SIZE, dataout);
 						
-						if(service.getPeerSocket().send(msgOut.getReplyTo(), service.getPeerSocket().getPort(), msg.getBytes())) {
-							
-							
-						} else {
-							
+						if(!endpointservice.getPeerSocket().send(msgOut.getReplyTo(), endpointservice.getPeerSocket().getPort(), msg.getBytes())) {
+
+							logger.warn("Error sending request back to " + msgOut.getReplyTo() +  " error " + endpointservice.getPeerSocket().getLastMessage());
+
 							// error sending back 
 							break;
 						}
@@ -111,24 +122,26 @@ public class EndPointRequest implements Runnable {
 				
 				
 				} catch (IOException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
+					
+					logger.warn("IO error handling request to " + getAddress() +  " error " + e.getMessage());
+					
 				}
 
 				
 			}
 		
-			tcpsocket.close();
+			if(tcpsocket!=null) {
+
+				tcpsocket.close();
+				
+			}
 
 		} catch (InterruptedException e) {
 		
-			// TODO Auto-generated catch block
-			e.printStackTrace();
 		
 		} catch (IOException e) {
-			
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+
+			logger.warn("IO error closing socket to " + getAddress() +  " error " + e.getMessage());
 		
 		}
 	
@@ -143,7 +156,6 @@ public class EndPointRequest implements Runnable {
 
 	public String getAddress() {
 
-		// TODO Auto-generated method stub
 		return host + ":" + String.valueOf(port);
 	}
 

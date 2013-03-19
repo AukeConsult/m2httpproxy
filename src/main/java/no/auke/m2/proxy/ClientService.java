@@ -10,6 +10,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import no.auke.m2.proxy.dataelements.ReplyMsg;
+import no.auke.m2.proxy.request.ClientRequest;
 import no.auke.p2p.m2.PeerServer;
 import no.auke.p2p.m2.Socket;
 import no.auke.p2p.m2.SocketListener;
@@ -20,10 +22,13 @@ public class ClientService implements Runnable {
 
 	private static final Logger logger = LoggerFactory.getLogger(ClientService.class);	
 	
-	private static final int PEER_PORT = 10;
+	private NeighBorhodService neighborService=null;
+	public NeighBorhodService getNeighborService() {
 	
+		return neighborService;
+	}
+
 	private PeerServer server;
-	
 	public PeerServer getPeerServer() {
 		return server;
 	}
@@ -38,18 +43,17 @@ public class ClientService implements Runnable {
 	private ConcurrentHashMap<Integer,ClientRequest> requests; 
 	private AtomicBoolean listening = new AtomicBoolean();
 	
-	private String defaultEndPoint;
 	
-	public ClientService (PeerServer server, int listenport, String defaultEndPoint) {
+	public ClientService (PeerServer server, NeighBorhodService neighborService) {
 				
 		this.server = server;
-		this.defaultEndPoint=defaultEndPoint;
+		this.neighborService=neighborService;
 		
         try {
         
-        	tcp_Socket = new ServerSocket(listenport);
+        	tcp_Socket = new ServerSocket(ServerParams.PROXY_PORT);
 
-    		peer_socket = server.open(PEER_PORT, new SocketListener(){
+    		peer_socket = server.open(ServerParams.HTTP_SERVICE_PORT, new SocketListener(){
 
     			@Override
     			public void onIncomming(byte[] buffer) {
@@ -65,11 +69,11 @@ public class ClientService implements Runnable {
     				
     			}});
 
-        	System.out.println("Started on: " + listenport);
+        	System.out.println("Started on: " + ServerParams.PROXY_PORT);
         
         } catch (IOException e) {
             
-        	System.err.println("Could not listen on port: " + listenport);
+        	System.err.println("Could not listen on port: " + ServerParams.PROXY_PORT);
         
         }
         
@@ -110,12 +114,6 @@ public class ClientService implements Runnable {
 		
         }
 		
-	}
-
-	// get a remote party
-	public String getRemote(SocketAddress localSocketAddress) {
-
-		return defaultEndPoint;
 	}
 
 }

@@ -1,4 +1,4 @@
-package no.auke.m2.proxy;
+package no.auke.m2.proxy.dataelements;
 
 import java.util.List;
 
