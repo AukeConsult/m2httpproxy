@@ -11,10 +11,11 @@ public class ReplyMsg {
 	public enum ErrCode {
 		
 		OK,
-		LOCAL_SEND_REMOTE,
-		LOCAL_REMOTE_TIMEOUT,
-		LOCAL_NO_REPLY_FROM_REMOTE,
-		REMOTE_NO_WEB_SERVER
+		LOCAL_ERR_SEND_REMOTE,
+		LOCAL_ERR_NO_ENDPOINT,
+		LOCAL_ERR_REMOTE_TIMEOUT,
+		LOCAL_ERR_NO_REPLY_FROM_REMOTE,
+		REMOTE_ERR_NO_WEB_SERVER
 		
 	}
 	
@@ -61,9 +62,10 @@ public class ReplyMsg {
 	}
 	
 	// error message for request
-	public ReplyMsg(ErrCode errocode, String message) {
+	public ReplyMsg(ErrCode errcode, String message) {
 		
-		data = StringConv.getBytes(String.valueOf(errocode) + " -> " + message);
+		this.errcode=errcode;
+		this.data = StringConv.getBytes(String.valueOf(errcode) + " -> " + message);
 		
 	}
 

@@ -4,11 +4,14 @@ import java.util.List;
 
 import no.auke.util.ByteUtil;
 import no.auke.util.StringConv;
-import no.auke.util.StringUtil;
 
 public class RequestMsg {
 	
 	public String getReplyTo() {
+		return replyTo;
+	}
+
+	public String getSendTo() {
 		return replyTo;
 	}
 	
@@ -28,14 +31,16 @@ public class RequestMsg {
 	}	
 
 	private String replyTo="";
+	private String sendTo="";	
 	private int session=0;
 	private byte[] httpdata;
 	private int port=0;
 	private String host="";
 
-	public RequestMsg(String replyTo, int session, String host, int port, byte[] httpdata) {
+	public RequestMsg(String replyTo, String sendTo, int session, String host, int port, byte[] httpdata) {
 		
 		this.replyTo=replyTo;
+		this.sendTo=sendTo;
 		this.session=session;
 		this.host=host;
 		this.port=port;
@@ -47,10 +52,11 @@ public class RequestMsg {
 		
         List<byte[]> subs = ByteUtil.splitDynamicBytes(data);
         replyTo = StringConv.UTF8(subs.get(0));
-        session = ByteUtil.getInt(subs.get(1));
-        host = StringConv.UTF8(subs.get(2));
-        port = ByteUtil.getInt(subs.get(3));
-        httpdata = subs.get(4);
+        sendTo = StringConv.UTF8(subs.get(1));
+        session = ByteUtil.getInt(subs.get(2));
+        host = StringConv.UTF8(subs.get(3));
+        port = ByteUtil.getInt(subs.get(4));
+        httpdata = subs.get(5);
 		
 	}
 	
@@ -59,6 +65,7 @@ public class RequestMsg {
 		return ByteUtil.mergeDynamicBytesWithLength(
 				
 				StringConv.getBytes(replyTo),
+				StringConv.getBytes(sendTo),
 				ByteUtil.getBytes(session, 4),
 				StringConv.getBytes(host),
 				ByteUtil.getBytes(port, 4),

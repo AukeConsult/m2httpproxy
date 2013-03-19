@@ -2,7 +2,7 @@ package no.auke.m2.proxy.services;
 
 import java.io.IOException;
 import java.net.ServerSocket;
-import java.net.SocketAddress;
+import java.net.SocketTimeoutException;
 import java.util.ArrayList;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -21,7 +21,9 @@ import no.auke.p2p.m2.SocketListener;
 // proxy service 
 public class ClientService implements Runnable {
 
-	private static final Logger logger = LoggerFactory.getLogger(ClientService.class);	
+	private static final Logger logger = LoggerFactory.getLogger(ClientService.class);
+
+	private static final int CHECK_FREQUENCY = 1000;	
 	
 	private NeighBorhodService neighborService=null;
 	public NeighBorhodService getNeighborService() {
@@ -63,7 +65,11 @@ public class ClientService implements Runnable {
     				
     				if(requests.containsKey(reply.getSession())) {
     					
-    					requests.get(reply.getSession()).gotReply(reply);
+    					if(!requests.get(reply.getSession()).gotReply(reply)) {
+    						
+    						logger.error("error request handling the reply for session " + reply.getSession());
+    						
+    					}
     					
     				}
     				
@@ -86,21 +92,31 @@ public class ClientService implements Runnable {
 
         try {
         	
-            while (listening.get()) {
+        	tcp_Socket.setSoTimeout(CHECK_FREQUENCY);
+            
+        	while (listening.get()) {
             	
-            	ClientRequest request = new ClientRequest(this,tcp_Socket.accept());
-            	requests.put(request.getSession(),request);
-            	server.getExecutor().execute(request);
+            	try {
+            		
+                	ClientRequest request = new ClientRequest(this,tcp_Socket.accept());
+                	requests.put(request.getSession(),request);
+                	server.getExecutor().execute(request);
+            		
+            	} catch (SocketTimeoutException tm) {
+            	}
             	            	
             	// check finish and remove from list
-            	
-            	ArrayList<ClientRequest> openRequests = new ArrayList<ClientRequest>(requests.values());
-            	for(ClientRequest check:openRequests){
-            	
-            		if(check.isComplete()){
-            			
-            			requests.remove(check.getSession());
-            		}
+            	if(requests.size()>0) {
+
+            		ArrayList<ClientRequest> openRequests = new ArrayList<ClientRequest>(requests.values());
+                	for(ClientRequest request:openRequests){
+                	
+                		request.checkReply();
+                		if(request.isComplete()){
+                			requests.remove(request.getSession());
+                		}
+                		
+                	}
             		
             	}
             	
@@ -111,6 +127,12 @@ public class ClientService implements Runnable {
 		
         } catch (IOException e) {
 		
+        	logger.error("error in tcp_socket " + e.getMessage());
+
+        } catch (Exception e) {
+    		
+        	logger.error("error in Client Service loop " + e.getMessage());
+        	
         	e.printStackTrace();
 		
         }
