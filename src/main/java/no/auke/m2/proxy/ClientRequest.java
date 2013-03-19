@@ -8,7 +8,12 @@ import java.net.Socket;
 import java.util.Random;
 import java.util.StringTokenizer;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 public class ClientRequest implements Runnable {
+	
+	private static final Logger logger = LoggerFactory.getLogger(ClientRequest.class);	
 	
 	public static Random sessions = new Random();
 	

@@ -5,9 +5,14 @@ import java.net.Socket;
 import java.net.UnknownHostException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import no.auke.p2p.m2.general.BlockingQueue;
 
 public class EndPointRequest implements Runnable {
+	
+	private static final Logger logger = LoggerFactory.getLogger(EndPointRequest.class);	
 	
 	private static final int BUFFER_SIZE = 32768;
 	private static final long MAX_INACTIVE = 60000; //(one minute) 

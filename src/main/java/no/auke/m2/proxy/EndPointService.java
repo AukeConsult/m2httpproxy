@@ -3,11 +3,17 @@ package no.auke.m2.proxy;
 import java.net.SocketAddress;
 import java.util.ArrayList;
 import java.util.concurrent.ConcurrentHashMap;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import no.auke.p2p.m2.PeerServer;
 import no.auke.p2p.m2.SocketListener;
 
 // proxy service 
 public class EndPointService implements Runnable {
+	
+	private static final Logger logger = LoggerFactory.getLogger(EndPointService.class);	
 
 	private static final int PEER_PORT = 10;
 	
