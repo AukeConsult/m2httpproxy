@@ -17,7 +17,6 @@ import no.auke.p2p.m2.PeerServer;
 import no.auke.p2p.m2.Socket;
 import no.auke.p2p.m2.SocketListener;
 
-
 // proxy service 
 public class ClientService implements Runnable {
 
@@ -132,7 +131,6 @@ public class ClientService implements Runnable {
         } catch (Exception e) {
     		
         	logger.error("error in Client Service loop " + e.getMessage());
-        	
         	e.printStackTrace();
 		
         }

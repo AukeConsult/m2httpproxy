@@ -1,14 +1,6 @@
 package no.auke.m2.proxy.request;
 
-import java.io.BufferedReader;
-import java.io.BufferedWriter;
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.DataOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.OutputStream;
 import java.io.PipedInputStream;
 import java.io.PipedOutputStream;
 import java.net.InetAddress;
@@ -26,10 +18,6 @@ import junit.framework.TestCase;
 import static org.mockito.Mockito.*;
 //import static org.powermock.api.mockito.PowerMockito.mock;
 //import static org.powermock.api.mockito.PowerMockito.when;
-//import no.auke.m2.chatcore.mocks.MockApp;
-//import no.auke.m2.core.NetSpaceService;
-//import no.auke.util.StringConv;
-
 
 public class ClientRequestTest extends TestCase {
 
@@ -59,7 +47,8 @@ public class ClientRequestTest extends TestCase {
 		socket=mock(java.net.Socket.class);
 		when(socket.getInetAddress()).thenReturn(address);
 		when(socket.getPort()).thenReturn(1000);
-		when(socket.getInputStream()).thenReturn(new PipedInputStream(send_socket_pipe));
+		
+		//when(socket.getInputStream()).thenReturn(new PipedInputStream(send_socket_pipe));
 		when(socket.getOutputStream()).thenReturn(new PipedOutputStream(read_socket_pipe));
 		
 		peer_socket = mock(Socket.class);
@@ -74,21 +63,37 @@ public class ClientRequestTest extends TestCase {
 
 	private void send_tcp(byte[] sendhttp) throws IOException{
 		
+		send_socket_pipe = new PipedOutputStream();
+		when(socket.getInputStream()).thenReturn(new PipedInputStream(send_socket_pipe));
+
 		send_socket_pipe.write(sendhttp);
 		send_socket_pipe.flush();
 		send_socket_pipe.close();
+
 		
 	}
 	
 	public void test_send_all_http_header_data() throws IOException {
 		
-		byte[] sendhttp = StringConv.getBytes("GET http://test.no:3000 format \r\nasdadsasdasd\r\nasdasdasd\r\n\r\n");
-		send_tcp(sendhttp);
-		
-		request.run();	
-		assertNotNull(request.getLastRequestMsg());
-		assertNull(request.getLastReplyMsg());
-		assertTrue(Arrays.equals(sendhttp, request.getLastRequestMsg().getHttpData()));
+		for(int i=0;i<10;i++) {
+
+			String http = "GET http://test.no:3000 format \r\n";
+			for(int x=0;x<i;x++){
+				http+="sfdsdfsdfsdfsdfsdfsdfsdfsdf dfdf ewerwerwerwe eweewrwerwer \r\n";
+			}
+			
+			http+="\r\n";
+			http+="123123123123123saasdsvx cxcvfsdfsdfsdf DATATATA";
+			
+			byte[] sendhttp = StringConv.getBytes(http);
+			send_tcp(sendhttp);
+			
+			request.run();	
+			assertNotNull(request.getLastRequestMsg());
+			assertNull(request.getLastReplyMsg());
+			assertTrue(Arrays.equals(sendhttp, request.getLastRequestMsg().getHttpData()));
+			
+		}
 		
 	}
 	
@@ -165,5 +170,34 @@ public class ClientRequestTest extends TestCase {
 		
 		
 	}
+	
+	public void test_gotReply() throws IOException {
+		
+		ReplyMsg msg = new ReplyMsg(0, 0, false, new byte[1]);
+		request.gotReply(msg);
+		assertNotNull(request.getLastReplyMsg());
+		assertFalse(request.getLastReplyMsg().isComplete());
+		
+	}	
+
+	public void test_gotReply_complete() throws IOException {
+		
+		ReplyMsg msg = new ReplyMsg(0, 0, true, new byte[1]);
+		request.gotReply(msg);
+		assertNotNull(request.getLastReplyMsg());
+		assertTrue(request.getLastReplyMsg().isComplete());
+		
+	}	
+	
+	public void test_check_timeout() throws IOException {
+		
+		request.setLastActivity(System.currentTimeMillis() - 100000);
+		request.checkReply();
+		
+		assertNotNull(request.getLastReplyMsg());
+		assertTrue(request.isComplete());
+		assertEquals(ReplyMsg.ErrCode.LOCAL_ERR_REMOTE_TIMEOUT,request.getLastReplyMsg().getErrcode());
+		
+	}	
 	
 }

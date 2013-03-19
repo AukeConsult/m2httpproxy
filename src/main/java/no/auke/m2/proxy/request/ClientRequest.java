@@ -31,13 +31,22 @@ public class ClientRequest implements Runnable {
 		return last_reply;
 	}
 	
+	
 	private Socket tcp_socket = null;
 	private int session=0; 
 	
 	private ClientService service;
 	private boolean iscomplete=false;
 	
-	private AtomicLong last_activity_time=new AtomicLong();
+	private AtomicLong last_activity=new AtomicLong();
+	public long getLastActivity() {
+	
+		return last_activity.get();
+	}
+	public void setLastActivity(long last_activity_time) {
+	
+		this.last_activity.set(last_activity_time);
+	}
 
 	public ClientRequest(ClientService service, Socket tcp_socket) {		
 	
@@ -50,7 +59,7 @@ public class ClientRequest implements Runnable {
 	public boolean gotReply(ReplyMsg reply){
 		
 		last_reply = reply;
-		last_activity_time.set(System.currentTimeMillis());
+		last_activity.set(System.currentTimeMillis());
 		
 		if(reply.getErrcode()!=ReplyMsg.ErrCode.OK){
 			
@@ -142,7 +151,7 @@ public class ClientRequest implements Runnable {
 					String address = commands[1].split("//")[1];
 					
 					host = address.split(":")[0];
-					port = address.split(":").length>1?Integer.valueOf(address.split(":")[1]):http.toLowerCase().equals("http")?80:443;
+					port = address.split(":").length>1?Integer.valueOf(address.split(":")[1]):http.toLowerCase().equals("https:")?443:80;
 					
 					break;
 				}
@@ -162,7 +171,7 @@ public class ClientRequest implements Runnable {
 					if(logger.isDebugEnabled())
 						logger.debug("request sent to " + endpoint + " from " + browser_address +  " session " + String.valueOf(session));
 
-					last_activity_time.set(System.currentTimeMillis());
+					last_activity.set(System.currentTimeMillis());
 					
 
 				} else {
@@ -200,7 +209,7 @@ public class ClientRequest implements Runnable {
 
 	public void checkReply() {
 
-		if(last_activity_time.get() > 0 && System.currentTimeMillis() - last_activity_time.get() > MAX_WAIT) {
+		if(last_activity.get() > 0 && System.currentTimeMillis() - last_activity.get() > MAX_WAIT) {
 
 			gotReply(new ReplyMsg(ReplyMsg.ErrCode.LOCAL_ERR_REMOTE_TIMEOUT,"to long waiting for reply from proxy"));
 		
