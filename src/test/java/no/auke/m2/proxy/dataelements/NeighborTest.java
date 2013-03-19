@@ -1,4 +1,4 @@
-package no.auke.m2.proxy;
+package no.auke.m2.proxy.dataelements;
 
 import no.auke.m2.proxy.dataelements.Neighbor;
 import junit.framework.TestCase;
