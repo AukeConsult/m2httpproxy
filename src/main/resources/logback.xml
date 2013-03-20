@@ -7,7 +7,7 @@
     </encoder>
   </appender>
 
-  <logger name="no.auke.m2" level="INFO"/>  
+  <logger name="no.auke.m2" level="DEBUG"/>  
   <logger name="no.auke.p2p.m2" level="INFO"/>
   <logger name="ch.qos.logback" level="ERROR"/>
    

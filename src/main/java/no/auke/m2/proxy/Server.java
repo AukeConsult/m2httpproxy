@@ -12,19 +12,41 @@ import no.auke.p2p.m2.agent.NetAddress;
 import no.auke.p2p.m2.general.LicenseReasons;
 import no.auke.util.FileUtil;
 
-public class Service {
+public class Server {
 	
-	private static final Logger logger = LoggerFactory.getLogger(Service.class);	
+	private static final Logger logger = LoggerFactory.getLogger(Server.class);	
 
-	PeerServer server;
+	private PeerServer peerserver;
+	public PeerServer getPeerServer() {
+		return peerserver;
+	}	
+	
+	public static Server singelton;
+	
+	public ClientService getClientService() {
+	
+		return clientservice;
+	}
+	public EndPointService getEndpointService() {
+	
+		return endpointservice;
+	}
+	public NeighBorhodService getNeighborService() {
+	
+		return neighborservice;
+	}
+
+	private ClientService clientservice;
+	private EndPointService endpointservice;
+	private NeighBorhodService neighborservice;
 	
 	private void initPeerServer(){
 
-		if(server==null) {
+		if(peerserver==null) {
 
 			// TODO: get a better device id
 			String deviceid = AgentInterface.convertToHex(AgentInterface.getHash(ServerParams.DEVICEID + ServerParams.NETSPACEID));
-			server = new PeerServer(ServerParams.NETSPACEID,
+			peerserver = new PeerServer(ServerParams.NETSPACEID,
 					                     ServerParams.APPID, 
 					                     deviceid, 
 					                     ServerParams.USERDIR,
@@ -50,7 +72,7 @@ public class Service {
 													String msg) {
 												
 												onMessage("user rejected from KA");
-												server.stopServer();
+												peerserver.stopServer();
 											}
 							
 											@Override
@@ -59,7 +81,7 @@ public class Service {
 													String licenseKey) {
 											
 												onMessage("license :" + licenseKey + " is invalid, reason: " + reason.name());
-												server.stopServer();
+												peerserver.stopServer();
 												
 											}
 
@@ -69,10 +91,10 @@ public class Service {
 			//HUYDO: read license from resource
 			//if we don't have license on disk or we did not force any license, the trial will be used
 			
-			this.server.setLicenseRegistrationHandler(ServerParams.getLicenseRegistrationHandler());		
+			this.peerserver.setLicenseRegistrationHandler(ServerParams.getLicenseRegistrationHandler());		
 			if(this.getClass().getResourceAsStream("/m2clientchat.license")!=null) {
 			
-				this.server.setLicense(FileUtil.readFromFile(this.getClass().getResourceAsStream("/m2clientchat.license")));
+				this.peerserver.setLicense(FileUtil.readFromFile(this.getClass().getResourceAsStream("/m2clientchat.license")));
 			
 			}
 				
@@ -80,33 +102,51 @@ public class Service {
 		
 	}
 	
-	public Service() {}
+	public Server() {
+		
+		singelton=this;
+		
+	}
 	
 	public void startProxy() {
 
 		initPeerServer();
 		
-		NeighBorhodService neighbors = new NeighBorhodService(server,"defaultendpoint");
-		
-		server.start("", ServerParams.M2_PORT, ServerParams.USERID);
-		if(server.isConnected()) {
+		if(ServerParams.USE_REMOTE) {
 			
-			server.getExecutor().execute(neighbors);
-			server.getExecutor().execute(new ClientService(server,neighbors));
-			server.getExecutor().execute(new EndPointService(server,neighbors));		
-			
-		} else {
-			
-			logger.warn("can not start peerserver " + server.getLastmessage());
+			peerserver.start("", ServerParams.M2_PORT, ServerParams.USERID);
 		}
 
-		
+		if(ServerParams.USE_REMOTE && !peerserver.isConnected()) {
+
+			logger.warn("can not start peerserver " + peerserver.getLastmessage());
+			
+		} else {
+
+			neighborservice = new NeighBorhodService(this,"defaultendpoint");
+			clientservice = new ClientService(this); 
+			endpointservice = new EndPointService(this);
+			
+			//server.getExecutor().execute(neighbors);
+			peerserver.getExecutor().execute(clientservice);
+			//server.getExecutor().execute(endpointservice);		
+			
+		}
 		
 	}
 
 	public void stopProxy() {
 		
-		server.stopServer();
+		peerserver.stopServer();
+		
+	}
+	
+	public static void main(String[] args) {
+		
+		ServerParams.USE_REMOTE=false; // internal testing
+		ServerParams.setArgs(args);
+		Server service = new Server();
+		service.startProxy();
 		
 	}
 	

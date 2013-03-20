@@ -10,10 +10,10 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import no.auke.m2.proxy.Server;
 import no.auke.m2.proxy.ServerParams;
 import no.auke.m2.proxy.dataelements.ReplyMsg;
 import no.auke.m2.proxy.request.ClientRequest;
-import no.auke.p2p.m2.PeerServer;
 import no.auke.p2p.m2.Socket;
 import no.auke.p2p.m2.SocketListener;
 
@@ -22,16 +22,9 @@ public class ClientService implements Runnable {
 
 	private static final Logger logger = LoggerFactory.getLogger(ClientService.class);
 
-	private static final int CHECK_FREQUENCY = 1000;	
 	
-	private NeighBorhodService neighborService=null;
-	public NeighBorhodService getNeighborService() {
-	
-		return neighborService;
-	}
-
-	private PeerServer server;
-	public PeerServer getPeerServer() {
+	private Server server;
+	public Server getServer() {
 		return server;
 	}
 
@@ -42,47 +35,57 @@ public class ClientService implements Runnable {
 
 	private ServerSocket tcp_Socket = null;
 
-	private ConcurrentHashMap<Integer,ClientRequest> requests; 
+	private ConcurrentHashMap<Integer,ClientRequest> requests = new ConcurrentHashMap<Integer,ClientRequest>(); 
 	private AtomicBoolean listening = new AtomicBoolean();
 	
 	
-	public ClientService (PeerServer server, NeighBorhodService neighborService) {
+	public ClientService (Server server) {
 				
 		this.server = server;
-		this.neighborService=neighborService;
-		
         try {
         
         	tcp_Socket = new ServerSocket(ServerParams.PROXY_PORT);
 
-    		peer_socket = server.open(ServerParams.HTTP_SERVICE_PORT, new SocketListener(){
+        	if(server.getPeerServer().isRunning()) {
+        		
+        		peer_socket = server.getPeerServer().open(ServerParams.HTTP_SERVICE_PORT, new SocketListener(){
 
-    			@Override
-    			public void onIncomming(byte[] buffer) {
+        			@Override
+        			public void onIncomming(byte[] buffer) {
 
-    				ReplyMsg reply = new ReplyMsg(buffer);
-    				
-    				if(requests.containsKey(reply.getSession())) {
-    					
-    					if(!requests.get(reply.getSession()).gotReply(reply)) {
-    						
-    						logger.error("error request handling the reply for session " + reply.getSession());
-    						
-    					}
-    					
-    				}
-    				
-    				
-    			}});
+        				gotReply(new ReplyMsg(buffer));
+        				
+        			}});
 
-        	System.out.println("Started on: " + ServerParams.PROXY_PORT);
+        		logger.info("Started loopback from m2 network");
+        		
+        	} else {
+        		
+        		peer_socket=new Socket(0, null);
+        		logger.info("No loopback from m2 network");
+        		
+        	}
         
         } catch (IOException e) {
             
-        	System.err.println("Could not listen on port: " + ServerParams.PROXY_PORT);
+        	logger.error("Could not listen on port: " + ServerParams.PROXY_PORT);
         
         }
-        
+		
+	}	
+	
+
+	public void gotReply(ReplyMsg msg) {
+
+		if(requests.containsKey(msg.getSession())) {
+			
+			if(!requests.get(msg.getSession()).gotReply(msg)) {
+				
+				logger.error("error request handling the reply for session " + msg.getSession());
+				
+			}
+			
+		}
 		
 	}	
 	
@@ -91,15 +94,19 @@ public class ClientService implements Runnable {
 
         try {
         	
-        	tcp_Socket.setSoTimeout(CHECK_FREQUENCY);
-            
+        	tcp_Socket.setSoTimeout(ServerParams.CHECK_FREQUENCY);
+        	
+        	listening.set(true);
+        	
         	while (listening.get()) {
             	
-            	try {
+        		logger.debug("check requests");
+        		try {
+            		
             		
                 	ClientRequest request = new ClientRequest(this,tcp_Socket.accept());
                 	requests.put(request.getSession(),request);
-                	server.getExecutor().execute(request);
+                	server.getPeerServer().getExecutor().execute(request);
             		
             	} catch (SocketTimeoutException tm) {
             	}
@@ -136,5 +143,6 @@ public class ClientService implements Runnable {
         }
 		
 	}
+
 
 }

@@ -5,9 +5,14 @@ import java.io.PipedInputStream;
 import java.io.PipedOutputStream;
 import java.net.InetAddress;
 import java.util.Arrays;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
+import no.auke.m2.proxy.Server;
 import no.auke.m2.proxy.dataelements.ReplyMsg;
+import no.auke.m2.proxy.dataelements.RequestMsg;
 import no.auke.m2.proxy.services.ClientService;
+import no.auke.m2.proxy.services.EndPointService;
 import no.auke.m2.proxy.services.NeighBorhodService;
 import no.auke.p2p.m2.PeerServer;
 import no.auke.p2p.m2.Socket;
@@ -21,26 +26,28 @@ import static org.mockito.Mockito.*;
 
 public class ClientRequestTest extends TestCase {
 
+	Server proxyserver;
 	ClientRequest request;
-	PeerServer server;
+	PeerServer peerserver;
 	ClientService clientservice;
+	EndPointService endpointservice;
 	NeighBorhodService neigborhodservice;
 	
-	Socket peer_socket;
-	
+	Socket peer_socket;	
 	java.net.Socket socket;
 	
 	PipedOutputStream send_socket_pipe = new PipedOutputStream();
 	PipedInputStream read_socket_pipe = new PipedInputStream();
 	
+	private ExecutorService executor = Executors.newCachedThreadPool();
+	
 	public void setUp() throws Exception {
-
-		server = mock(PeerServer.class);
-		when(server.getClientid()).thenReturn("localpoint");
 		
-		neigborhodservice = mock(NeighBorhodService.class);
-		when(neigborhodservice.getRemoteEndPoint(anyString())).thenReturn("endpoint");
-
+		peerserver = mock(PeerServer.class);
+		when(peerserver.getClientid()).thenReturn("localpoint");
+		when(peerserver.isRunning()).thenReturn(true);
+		when(peerserver.getExecutor()).thenReturn(executor);
+		
 		InetAddress address=mock(InetAddress.class);
 		when(address.getHostAddress()).thenReturn("test");
 
@@ -54,10 +61,23 @@ public class ClientRequestTest extends TestCase {
 		peer_socket = mock(Socket.class);
 		when(peer_socket.send(anyString(), anyInt(), (byte[])any())).thenReturn(true);
 
-		clientservice = spy(new ClientService(server, neigborhodservice));
+		proxyserver = mock(Server.class); 
+		when(proxyserver.getPeerServer()).thenReturn(peerserver);
+		
+		clientservice = spy(new ClientService(proxyserver));
 		when(clientservice.getPeerSocket()).thenReturn(peer_socket);
 
+		endpointservice = spy(new EndPointService(proxyserver));
+		when(endpointservice.getPeerSocket()).thenReturn(peer_socket);
+
+		neigborhodservice = mock(NeighBorhodService.class);
+		when(neigborhodservice.getRemoteEndPoint(anyString())).thenReturn("endpoint");
+		
 		request = spy(new ClientRequest(clientservice, socket));
+
+		when(proxyserver.getNeighborService()).thenReturn(neigborhodservice);
+		when(proxyserver.getEndpointService()).thenReturn(endpointservice);
+		when(proxyserver.getClientService()).thenReturn(clientservice);
 		
 	}
 
@@ -70,7 +90,6 @@ public class ClientRequestTest extends TestCase {
 		send_socket_pipe.flush();
 		send_socket_pipe.close();
 
-		
 	}
 	
 	public void test_send_all_http_header_data() throws IOException {
@@ -110,6 +129,31 @@ public class ClientRequestTest extends TestCase {
 		assertTrue(Arrays.equals(sendhttp, request.getLastRequestMsg().getHttpData()));
 		
 	}
+	
+	public void test_send_http_peerservice_not_running() throws IOException {
+		
+		when(peerserver.isRunning()).thenReturn(false);
+
+		byte[] sendhttp = StringConv.getBytes("GET http://test.no format \r\nasdadsasdasd\r\nasdasdasd\r\n\r\n");
+		send_tcp(sendhttp);
+		request.run();
+		
+		verify(endpointservice,times(1)).gotRequest((RequestMsg) anyObject());
+		
+	}	
+
+	public void test_send_http_peerservice_running() throws IOException {
+		
+		when(peerserver.isRunning()).thenReturn(true);
+
+		byte[] sendhttp = StringConv.getBytes("GET http://test.no format \r\nasdadsasdasd\r\nasdasdasd\r\n\r\n");
+		send_tcp(sendhttp);
+		request.run();
+		
+		verify(endpointservice,never()).gotRequest((RequestMsg) anyObject());
+		
+	}	
+	
 
 	public void test_send_https() throws IOException {
 		

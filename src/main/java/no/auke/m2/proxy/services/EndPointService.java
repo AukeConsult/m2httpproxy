@@ -6,10 +6,11 @@ import java.util.concurrent.ConcurrentHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import no.auke.m2.proxy.Server;
 import no.auke.m2.proxy.ServerParams;
 import no.auke.m2.proxy.dataelements.RequestMsg;
 import no.auke.m2.proxy.request.EndPointRequest;
-import no.auke.p2p.m2.PeerServer;
+import no.auke.p2p.m2.Socket;
 import no.auke.p2p.m2.SocketListener;
 
 // proxy service 
@@ -17,10 +18,8 @@ public class EndPointService implements Runnable {
 	
 	private static final Logger logger = LoggerFactory.getLogger(EndPointService.class);	
 
-	private PeerServer server;
-	private NeighBorhodService neighbors=null;
-
-	public PeerServer getPeerServer() {
+	private Server server;
+	public Server getServer() {
 		return server;
 	}
 
@@ -29,48 +28,54 @@ public class EndPointService implements Runnable {
 		return peer_socket;
 	}
 
-	private ConcurrentHashMap<String,EndPointRequest> requests; 
+	private ConcurrentHashMap<String,EndPointRequest> requests = new ConcurrentHashMap<String,EndPointRequest>(); 
 	
-	public EndPointService (PeerServer server, NeighBorhodService neighbors) {
+	public EndPointService (Server server) {
 				
 		this.server = server;
-		this.neighbors=neighbors;
 
-		final EndPointService me = this;
-		
-		
-		peer_socket = this.server.open(ServerParams.HTTP_SERVICE_PORT, new SocketListener(){
-			
-			@Override
-			public void onIncomming(byte[] buffer) {
+    	if(server.getPeerServer().isRunning()) {
+    		
+    		peer_socket = getServer().getPeerServer().open(ServerParams.HTTP_SERVICE_PORT, new SocketListener(){
+    			
+    			@Override
+    			public void onIncomming(byte[] buffer) {
 
-				RequestMsg msg = new RequestMsg(buffer);
+    				gotRequest(new RequestMsg(buffer));
+    				
+    			}});
 
-		    	logger.debug(" > request message " + msg.getReplyTo() + " for " + msg.getAddress());
+    		logger.info("Started loopback from m2 network");
+    		
+    	} else {
+    		
+    		peer_socket=new Socket(0, null);
+    		logger.info("No loopback from m2 network");
+    		
+    	}
 
-				if(!requests.containsKey(msg.getAddress())) {
-					
-					me.neighbors.addNeighbor(msg);
-					
-					// open a request session for each different host endpoint
-					
-					EndPointRequest request = new EndPointRequest(me,msg.getHost(),msg.getPort());
-					
-					requests.put(msg.getAddress(), request);
-					getPeerServer().getExecutor().execute(request);
-				
-					
-				}
-				
-				requests.get(msg.getAddress()).gotRequest(msg);
-				
-			}});
-
-    	logger.info("Started endpoint service");
-            
 		
 	}	
 
+	public void gotRequest(RequestMsg msg) {
+
+    	logger.debug(" > request message " + msg.getReplyTo() + " for " + msg.getAddress());
+		if(!requests.containsKey(msg.getAddress())) {
+			
+			getServer().getNeighborService().addNeighbor(msg);
+			
+			// open a request session for each different host endpoint
+			
+			EndPointRequest request = new EndPointRequest(this,msg.getHost(),msg.getPort());
+			
+			requests.put(msg.getAddress(), request);
+			getServer().getPeerServer().getExecutor().execute(request);
+					
+		}
+		requests.get(msg.getAddress()).gotRequest(msg);
+		
+	}
+	
 	@Override
 	public void run() {
 
@@ -85,12 +90,9 @@ public class EndPointService implements Runnable {
         		if(check.isComplete()) {
         			
         			requests.remove(check.getAddress());
-        			
-        		
         		}
         		
         	}
-			
 			
 			try {
 				Thread.sleep(5000);
@@ -101,5 +103,6 @@ public class EndPointService implements Runnable {
 			
 		}
 	}
+
 
 }

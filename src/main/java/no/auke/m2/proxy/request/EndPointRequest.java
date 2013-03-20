@@ -1,16 +1,17 @@
 package no.auke.m2.proxy.request;
 
 import java.io.IOException;
-import java.net.Socket;
 import java.net.UnknownHostException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import no.auke.m2.proxy.ServerParams;
 import no.auke.m2.proxy.dataelements.ReplyMsg;
 import no.auke.m2.proxy.dataelements.RequestMsg;
 import no.auke.m2.proxy.services.EndPointService;
+import no.auke.p2p.m2.Socket;
 import no.auke.p2p.m2.general.BlockingQueue;
 
 public class EndPointRequest implements Runnable {
@@ -20,10 +21,10 @@ public class EndPointRequest implements Runnable {
 	private static final int BUFFER_SIZE = 32768;
 	private static final long MAX_INACTIVE = 60000; //(one minute) 
 
-	private EndPointService endpointservice;
-	public EndPointService getEndpointService() {
+	private EndPointService service;
+	public EndPointService getService() {
 	
-		return endpointservice;
+		return service;
 	}
 
 	private long lastused=0;
@@ -33,13 +34,13 @@ public class EndPointRequest implements Runnable {
 	
 	private BlockingQueue<RequestMsg> outMsg;
 	
-	private Socket tcpsocket;
+	private java.net.Socket tcpsocket;
 
 	private AtomicBoolean isstopped = new AtomicBoolean();
 	
 	public EndPointRequest(EndPointService service, String host, int port) {		
 	
-		this.endpointservice=service;
+		this.service=service;
 		this.host = host;
 		this.port=port;
 
@@ -47,8 +48,10 @@ public class EndPointRequest implements Runnable {
 		outMsg = new BlockingQueue<RequestMsg>(1000);
 		
 		try {
-		
-			tcpsocket = new Socket(host, port);
+
+			logger.debug("open endpoint socket for");
+			
+			tcpsocket = new java.net.Socket(host, port);
 			isstopped.set(false);
 		
 		} catch (UnknownHostException e) {
@@ -81,6 +84,9 @@ public class EndPointRequest implements Runnable {
 		byte[] datain = new byte[BUFFER_SIZE];
 		try {
 		
+			Socket peer_socket = getService().getPeerSocket();
+			boolean peer_server_running = getService().getServer().getPeerServer().isRunning();
+			
 			while(!isstopped.get() && (msgOut = outMsg.take())!=null) {
 
 				if(logger.isDebugEnabled())
@@ -106,12 +112,22 @@ public class EndPointRequest implements Runnable {
 						
 						ReplyMsg msg = new ReplyMsg(msgOut.getSession(), cnt, index < BUFFER_SIZE, dataout);
 						
-						if(!endpointservice.getPeerSocket().send(msgOut.getReplyTo(), endpointservice.getPeerSocket().getPort(), msg.getBytes())) {
+						if(peer_server_running && !msgOut.getReplyTo().equals(ServerParams.USERID)) {
 
-							logger.warn("Error sending request back to " + msgOut.getReplyTo() +  " error " + endpointservice.getPeerSocket().getLastMessage());
+							if(!peer_socket.send(msgOut.getReplyTo(), ServerParams.M2_PORT, msg.getBytes())) {
 
-							// error sending back 
-							break;
+								logger.warn("Error sending request back to " + msgOut.getReplyTo() +  " error " + getService().getPeerSocket().getLastMessage());
+
+								// error sending back 
+								break;
+							}
+
+							
+						} else {
+							
+							// request is from local client
+							getService().getServer().getClientService().gotReply(msg);
+							
 						}
 
 						lastused = System.currentTimeMillis();

@@ -16,11 +16,15 @@ import no.auke.util.FileUtil;
 import no.auke.util.ListNetworks;
 
 public class ServerParams {	
+
+	public static boolean USE_REMOTE = true;
 	
 	public static final String NETSPACEID = "m2proxy";
 	
 	public static final int HTTP_SERVICE_PORT = 10;
 	public static final int NEIGTBOR_SERVICE_PORT = 11;
+
+	public static int CHECK_FREQUENCY = 15000;	
 
 	public static int PROXY_PORT = 8432;
 	public static int M2_PORT = 8431;
@@ -38,27 +42,9 @@ public class ServerParams {
 	public static int ENCRYPTION=0;
 		
 	public static String USERID="";
-	public static String WINDOWS = "Windows";
-	
 	public static String OS_NAME = System.getProperty("os.name");
-
-	// LHA: parameter to disable auto update
-	// (for development)
-
-	public static int TIME_OUT = 180000; //3 minutes
-	public static String VERSION = "version.properties";
-		
-	// Frequency of try to send 
-	public static int SEND_FREQUENCY = 5000;
-	
-	// LHA: once a minute is sufficient
-	// I think
-	public static int PING_FREQUENCY = 60000;
-	
-	public static int RECALL_DELAY = 60000;
 	
 	public static boolean USEMIDDLEMAN = false;
-
 	public static boolean SILENT = false;
 	
     public static void setArgs(String[] args) {

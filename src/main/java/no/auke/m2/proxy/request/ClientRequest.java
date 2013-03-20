@@ -6,6 +6,7 @@ import java.net.Socket;
 import java.util.Random;
 import java.util.concurrent.atomic.AtomicLong;
 
+import no.auke.m2.proxy.ServerParams;
 import no.auke.m2.proxy.dataelements.ReplyMsg;
 import no.auke.m2.proxy.dataelements.RequestMsg;
 import no.auke.m2.proxy.services.ClientService;
@@ -36,6 +37,11 @@ public class ClientRequest implements Runnable {
 	private int session=0; 
 	
 	private ClientService service;
+	public ClientService getService() {
+	
+		return service;
+	}
+	
 	private boolean iscomplete=false;
 	
 	private AtomicLong last_activity=new AtomicLong();
@@ -53,13 +59,19 @@ public class ClientRequest implements Runnable {
 		this.tcp_socket = tcp_socket;
 		this.session=sessions.nextInt();
 		this.service=service;
+		
+		if(logger.isDebugEnabled())
+			logger.debug("new request");
 	
-	}	
+	}
 	
 	public boolean gotReply(ReplyMsg reply){
 		
 		last_reply = reply;
 		last_activity.set(System.currentTimeMillis());
+		
+		if(logger.isDebugEnabled())
+			logger.debug("got reply");
 		
 		if(reply.getErrcode()!=ReplyMsg.ErrCode.OK){
 			
@@ -158,35 +170,45 @@ public class ClientRequest implements Runnable {
 				
 			}
 			
-			
-			String endpoint = service.getNeighborService().getRemoteEndPoint(browser_address);
-			
+			String endpoint = getService().getServer().getNeighborService().getRemoteEndPoint(browser_address);
 			if(!endpoint.isEmpty()) {
 
-				last_request = new RequestMsg(service.getPeerServer().getClientid(), endpoint, session, host, port, data);
+				logger.debug(new String(data));
+
+				last_request = new RequestMsg(service.getServer().getPeerServer().getClientid(), endpoint, session, host, port, data);
 				
-				if(service.getPeerSocket().send(endpoint, service.getPeerSocket().getPort(), last_request.getBytes())){
+				if(getService().getServer().getPeerServer().isRunning()) {
 					
-					// ok send
-					if(logger.isDebugEnabled())
-						logger.debug("request sent to " + endpoint + " from " + browser_address +  " session " + String.valueOf(session));
+					if(getService().getPeerSocket().send(endpoint, service.getPeerSocket().getPort(), last_request.getBytes())){
+						
+						// ok send
+						if(logger.isDebugEnabled())
+							logger.debug("request sent to " + endpoint + " from " + browser_address +  " session " + String.valueOf(session));
 
-					last_activity.set(System.currentTimeMillis());
+						last_activity.set(System.currentTimeMillis());
+						
+
+					} else {
+						
+						last_request=null;
+						
+						getService().getServer().getNeighborService().resetRemoteEndPoint(browser_address);
+						getService().getServer().getNeighborService().setNotAlive(endpoint);
+						
+						// sending direct reply with error
+						
+						gotReply(new ReplyMsg(ReplyMsg.ErrCode.LOCAL_ERR_SEND_REMOTE,"error sending request to remote proxy"));
+						
+						// error sending
+						logger.warn("Error sending request to end point " + endpoint + " m2 error " + service.getPeerSocket().getLastMessage() );
+						
+					}
 					
-
+					
 				} else {
 					
-					last_request=null;
-					
-					service.getNeighborService().resetRemoteEndPoint(browser_address);
-					service.getNeighborService().setNotAlive(endpoint);
-					
-					// sending direct reply with error
-					
-					gotReply(new ReplyMsg(ReplyMsg.ErrCode.LOCAL_ERR_SEND_REMOTE,"error sending request to remote proxy"));
-					
-					// error sending
-					logger.warn("Error sending request to end point " + endpoint + " m2 error " + service.getPeerSocket().getLastMessage() );
+					// sending directly to the local end point
+					getService().getServer().getEndpointService().gotRequest(last_request);
 					
 				}
 				
