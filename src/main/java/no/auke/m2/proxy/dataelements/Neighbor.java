@@ -1,3 +1,12 @@
+/*
+ * This file is part of m2 http proxy project 
+ * 
+ * Copyright (c) 2011-2013 Auke Team / Leif Auke <leif@auke.no> / Huy Do <huydo@auke.no>
+ * 
+ * License: Attribution-NonCommercial-ShareAlike CC BY-NC-SA 
+ * 
+ */
+
 package no.auke.m2.proxy.dataelements;
 
 import java.util.List;

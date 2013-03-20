@@ -1,3 +1,13 @@
+/*
+ * This file is part of m2 http proxy project 
+ * 
+ * Copyright (c) 2011-2013 Auke Team / Leif Auke <leif@auke.no> / Huy Do <huydo@auke.no>
+ * 
+ * License: Attribution-NonCommercial-ShareAlike CC BY-NC-SA 
+ * 
+ */
+
+
 package no.auke.m2.proxy.request;
 
 import java.io.ByteArrayOutputStream;
@@ -129,6 +139,9 @@ public class ClientRequest implements Runnable {
 		// get response from server
 		// send response to user
 
+		if(logger.isDebugEnabled())
+			logger.debug("started request thread");
+		
 		try {
 
 			String browser_address = tcp_socket.getInetAddress().getHostAddress() + ":"+ String.valueOf(tcp_socket.getPort());
@@ -141,10 +154,16 @@ public class ClientRequest implements Runnable {
 			byte[] inbuffer = new byte[4096];
 			int bytes=0;
 			while((bytes=tcp_socket.getInputStream().read(inbuffer,0,4096))!=-1){
+
 				buffer.write(inbuffer, 0,bytes);
+				
+				if(logger.isDebugEnabled())
+					logger.debug("input from browser, length " + String.valueOf(buffer.size()));
 			}
+			
 			byte[] data=buffer.toByteArray();
 
+			
 			String host="";
 			int port=0;
 			
@@ -175,7 +194,7 @@ public class ClientRequest implements Runnable {
 
 				logger.debug(new String(data));
 
-				last_request = new RequestMsg(service.getServer().getPeerServer().getClientid(), endpoint, session, host, port, data);
+				last_request = new RequestMsg(getService().getServer().getClientid(), endpoint, session, host, port, data);
 				
 				if(getService().getServer().getPeerServer().isRunning()) {
 					

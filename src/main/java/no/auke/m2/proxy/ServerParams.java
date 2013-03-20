@@ -1,8 +1,9 @@
 /*
- * This file is part of Keep Alive project, mobile soft socket 
+ * This file is part of m2 http proxy project 
  * 
- * Copyright (c) 2011-2012 Leif Auke <leif@auke.no> - All rights
- * reserved.
+ * Copyright (c) 2011-2013 Auke Team / Leif Auke <leif@auke.no> / Huy Do <huydo@auke.no>
+ * 
+ * License: Attribution-NonCommercial-ShareAlike CC BY-NC-SA 
  * 
  */
 
@@ -17,21 +18,19 @@ import no.auke.util.ListNetworks;
 
 public class ServerParams {	
 
-	public static boolean USE_REMOTE = true;
+	public final static String APPID="m2proxy";
+	public final static String NETSPACEID = "m2proxynetspace";
+	public final static int HTTP_SERVICE_PORT = 10;
+	public final static int NEIGTBOR_SERVICE_PORT = 11;
 	
-	public static final String NETSPACEID = "m2proxy";
-	
-	public static final int HTTP_SERVICE_PORT = 10;
-	public static final int NEIGTBOR_SERVICE_PORT = 11;
-
-	public static int CHECK_FREQUENCY = 15000;	
-
 	public static int PROXY_PORT = 8432;
 	public static int M2_PORT = 8431;
 
-	public static String ROOTDIR = "";
+	public static int CHECK_FREQUENCY = 15000;	
 	
-	public static String APPID="m2proxy";
+	public static boolean USE_REMOTE = true;
+
+	public static String ROOTDIR = "";
 	
 	public static String DEVICEID=ListNetworks.getMacAddress();
 
@@ -42,7 +41,6 @@ public class ServerParams {
 	public static int ENCRYPTION=0;
 		
 	public static String USERID="";
-	public static String OS_NAME = System.getProperty("os.name");
 	
 	public static boolean USEMIDDLEMAN = false;
 	public static boolean SILENT = false;
@@ -51,7 +49,7 @@ public class ServerParams {
     	
     	
     	// Linux / windows
-    	if(OS_NAME.toLowerCase().startsWith("win")) {
+    	if(System.getProperty("os.name").toLowerCase().startsWith("win")) {
     		
     		ROOTDIR = System.getenv("LOCALAPPDATA");
     		
@@ -71,12 +69,14 @@ public class ServerParams {
     		ENCRYPTION = properties.getProperty("encryption") == null ? ENCRYPTION
                     : Integer.parseInt(properties.getProperty("encryption"));
     		
-    		M2_PORT = properties.getProperty("port") == null ? M2_PORT
-                    : Integer.parseInt(properties.getProperty("port"));
+    		M2_PORT = properties.getProperty("m2Port") == null ? M2_PORT
+                    : Integer.parseInt(properties.getProperty("m2Port"));
+
+    		PROXY_PORT = properties.getProperty("proxyPort") == null ? PROXY_PORT
+                    : Integer.parseInt(properties.getProperty("proxyPort"));
     		
     		USEMIDDLEMAN = properties.getProperty("useMiddelman") == null ? USEMIDDLEMAN
                     : Boolean.parseBoolean(properties.getProperty("useMiddelman"));
-    		
     	
     	} catch (IOException e) {
 
@@ -113,9 +113,13 @@ public class ServerParams {
             		  
             		  BOOTADDRESS = args[pos + 1];            		  
 
-                  } else if (args[pos].toLowerCase().equals("-port") && args.length > pos + 1) {
+                  } else if (args[pos].toLowerCase().equals("-m2Port") && args.length > pos + 1) {
                 	  
                 	  M2_PORT = Integer.valueOf(args[pos + 1]);
+
+                  } else if (args[pos].toLowerCase().equals("-proxyPort") && args.length > pos + 1) {
+                	  
+                	  PROXY_PORT = Integer.valueOf(args[pos + 1]);
             		  
                   } else if (args[pos].toLowerCase().equals("-debug") && args.length > pos + 1) {
                 	  

@@ -1,8 +1,9 @@
 /*
- * This file is part of Keep Alive project, mobile soft socket 
+ * This file is part of m2 http proxy project 
  * 
- * Copyright (c) 2011-2012 Leif Auke <leif@auke.no> - All rights
- * reserved.
+ * Copyright (c) 2011-2013 Auke Team / Leif Auke <leif@auke.no> / Huy Do <huydo@auke.no>
+ * 
+ * License: Attribution-NonCommercial-ShareAlike CC BY-NC-SA 
  * 
  */
 
