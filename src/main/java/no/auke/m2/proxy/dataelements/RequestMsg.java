@@ -48,10 +48,10 @@ public class RequestMsg {
 
 	public RequestMsg(String replyTo, String sendTo, int session, String host, int port, byte[] httpdata) {
 		
-		this.replyTo=replyTo;
-		this.sendTo=sendTo;
+		this.replyTo=replyTo.isEmpty()?"":replyTo;
+		this.sendTo=sendTo.isEmpty()?"":sendTo;
 		this.session=session;
-		this.host=host;
+		this.host=host.isEmpty()?"":host;
 		this.port=port;
 		this.httpdata=httpdata;
 	

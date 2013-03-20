@@ -22,7 +22,7 @@ public class Neighbor {
 	}
 	public void setClientid(String clientid) {
 	
-		this.clientid = clientid;
+		this.clientid = clientid.isEmpty()?"":clientid;
 	}
 	public boolean isAlive() {
 	
@@ -74,7 +74,7 @@ public class Neighbor {
 		
 	public Neighbor(String clientid) {		
 		
-		this.clientid=clientid;
+		setClientid(clientid);
 	
 	}
 

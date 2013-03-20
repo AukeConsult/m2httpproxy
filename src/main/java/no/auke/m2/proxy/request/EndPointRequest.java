@@ -10,6 +10,7 @@
 package no.auke.m2.proxy.request;
 
 import java.io.IOException;
+import java.net.Socket;
 import java.net.UnknownHostException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -17,10 +18,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import no.auke.m2.proxy.ServerParams;
+import no.auke.m2.proxy.comunicate.INeighborCom;
 import no.auke.m2.proxy.dataelements.ReplyMsg;
 import no.auke.m2.proxy.dataelements.RequestMsg;
+import no.auke.m2.proxy.services.ClientService;
 import no.auke.m2.proxy.services.EndPointService;
-import no.auke.p2p.m2.Socket;
 import no.auke.p2p.m2.general.BlockingQueue;
 
 public class EndPointRequest implements Runnable {
@@ -41,27 +43,40 @@ public class EndPointRequest implements Runnable {
 	private int port=0;
 	private String host="";
 	
-	private BlockingQueue<RequestMsg> outMsg;
+	private BlockingQueue<RequestMsg> outMsg = new BlockingQueue<RequestMsg>(1000);
 	
 	private java.net.Socket tcpsocket;
-
-	private AtomicBoolean isstopped = new AtomicBoolean();
+	public java.net.Socket getTcpSocket() {
 	
-	public EndPointRequest(EndPointService service, String host, int port) {		
+		return tcpsocket;
+	}
+
+	private AtomicBoolean isconnected = new AtomicBoolean();
+	public boolean isConnected() {
+	
+		return isconnected.get();
+	}
+
+	private INeighborCom neighborCom;
+	public INeighborCom getNeighborCom() {
+	
+		return neighborCom;
+	}
+
+	public EndPointRequest(EndPointService service, String host, int port, INeighborCom neighborCom) {		
 	
 		this.service=service;
 		this.host = host;
 		this.port=port;
+		this.neighborCom=neighborCom;
 
-		isstopped.set(true);
-		outMsg = new BlockingQueue<RequestMsg>(1000);
-		
+		isconnected.set(false);
 		try {
 
 			logger.debug("open endpoint socket for");
 			
 			tcpsocket = new java.net.Socket(host, port);
-			isstopped.set(false);
+			isconnected.set(tcpsocket.isConnected());
 		
 		} catch (UnknownHostException e) {
 		
@@ -75,91 +90,128 @@ public class EndPointRequest implements Runnable {
 	
 	}	
 	
-	public void gotRequest(RequestMsg msg){
+	public boolean gotRequest(RequestMsg msg){
 
-		if(!isstopped.get()) {
+		if(isConnected()) {
 
 			lastused = System.currentTimeMillis();
 			outMsg.add(msg);
+
+			return true;
+			
+		} else {
+			
+			return false;
 			
 		}
 	
+	}
+	
+	public boolean writeRequest(byte[] httpdata) {
+		
+		try {
+			
+			tcpsocket.getOutputStream().write(httpdata, 0, httpdata.length);
+			tcpsocket.getOutputStream().flush();
+			
+			Thread.yield();
+			return true;
+
+		} catch (IOException e) {
+			
+			logger.warn("IO error handling request to " + getAddress() +  " error " + e.getMessage());
+			return false;
+		}
+				
+	}
+	
+	public boolean readResultSendBack(int session, String replyTo) {
+		
+		byte[] datain = new byte[BUFFER_SIZE];
+		int cnt=0;
+		int index = 0;
+		
+		try {
+			
+			while ((index = tcpsocket.getInputStream().read(datain, 0, BUFFER_SIZE))!= -1) {
+				
+				byte[] dataout = new byte[index];
+				if(index>0) {
+					
+					System.arraycopy(datain, 0, dataout, 0, index);
+				}
+				
+				sendResultBack(new ReplyMsg(session, cnt, index < BUFFER_SIZE, dataout),replyTo);
+				lastused = System.currentTimeMillis();
+				cnt++;
+					
+			}
+			
+			return true;
+			
+		} catch (IOException e) {
+
+			logger.warn("IO error reading result from " + getAddress() +  " error " + e.getMessage());
+			sendResultBack(new ReplyMsg(ReplyMsg.ErrCode.REMOTE_ERR_IO,session,e.getMessage()),replyTo);
+			
+			return false;
+
+		}
+		
+	}
+		
+	public boolean sendResultBack(ReplyMsg msg, String replyTo) {
+		
+		if(!replyTo.equals(getService().getServer().getClientid())) {
+
+			return getNeighborCom().replyHttpFromEndPoint(msg, replyTo);
+			
+		} else {
+			
+			// request is from local client
+			getService().getServer().getClientService().gotReply(msg);
+			return true;
+		}
+		
+		
 	}
 	
 	@Override
 	public void run() {
 
 		RequestMsg msgOut;
-		byte[] datain = new byte[BUFFER_SIZE];
 		try {
 		
-			Socket peer_socket = getService().getPeerSocket();
-			boolean peer_server_running = getService().getServer().getPeerServer().isRunning();
-			
-			while(!isstopped.get() && (msgOut = outMsg.take())!=null) {
+			while(!isconnected.get() && (msgOut = outMsg.take())!=null) {
 
 				if(logger.isDebugEnabled())
 					logger.debug("handling request from " + msgOut.getReplyTo() +  " to " + getAddress());
-
+				
+				logger.debug(new String(msgOut.getHttpData()));
 				lastused = System.currentTimeMillis();
 
-				try {
-			
-					tcpsocket.getOutputStream().write(msgOut.getHttpData(), 0, msgOut.getHttpData().length);
-					tcpsocket.getOutputStream().flush();
+				if(writeRequest(msgOut.getHttpData())) {
 
-					int cnt=0;
-
-					int index = 0;
-					while ((index = tcpsocket.getInputStream().read(datain, 0, BUFFER_SIZE))!= -1) {
-						
-						byte[] dataout = new byte[index];
-						if(index>0) {
-							
-							System.arraycopy(datain, 0, dataout, 0, index);
-						}
-						
-						ReplyMsg msg = new ReplyMsg(msgOut.getSession(), cnt, index < BUFFER_SIZE, dataout);
-						
-						if(peer_server_running && !msgOut.getReplyTo().equals(ServerParams.USERID)) {
-
-							if(!peer_socket.send(msgOut.getReplyTo(), ServerParams.M2_PORT, msg.getBytes())) {
-
-								logger.warn("Error sending request back to " + msgOut.getReplyTo() +  " error " + getService().getPeerSocket().getLastMessage());
-
-								// error sending back 
-								break;
-							}
-
-							
-						} else {
-							
-							// request is from local client
-							getService().getServer().getClientService().gotReply(msg);
-							
-						}
-
-						lastused = System.currentTimeMillis();
-						cnt++;
-							
-
-					}
-				
-				
-				} catch (IOException e) {
+					readResultSendBack(msgOut.getSession(), msgOut.getReplyTo());
 					
-					logger.warn("IO error handling request to " + getAddress() +  " error " + e.getMessage());
+				} else {
 					
+					logger.warn("can not send request to web server at " + getAddress());
+					sendResultBack(new ReplyMsg(ReplyMsg.ErrCode.REMOTE_ERR_NO_WEB_SERVER,msgOut.getSession(),"can not send request to webserver"),msgOut.getReplyTo());
+					
+					// disconnect this session
+					isconnected.set(false);
+				
 				}
-
 				
 			}
-		
+
 			if(tcpsocket!=null) {
 
 				tcpsocket.close();
 				
-			}
+			}			
+
 
 		} catch (InterruptedException e) {
 		
@@ -174,8 +226,8 @@ public class EndPointRequest implements Runnable {
 
 	public boolean isComplete() {
 		
-		isstopped.set(System.currentTimeMillis() - lastused > MAX_INACTIVE);
-		return isstopped.get();
+		isconnected.set(System.currentTimeMillis() - lastused > MAX_INACTIVE);
+		return isconnected.get();
 	
 	}
 

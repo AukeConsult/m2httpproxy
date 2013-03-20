@@ -16,72 +16,43 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import no.auke.m2.proxy.Server;
-import no.auke.m2.proxy.ServerParams;
 import no.auke.m2.proxy.dataelements.RequestMsg;
 import no.auke.m2.proxy.request.EndPointRequest;
-import no.auke.p2p.m2.Socket;
-import no.auke.p2p.m2.SocketListener;
 
 // proxy service 
-public class EndPointService implements Runnable {
+public class EndPointService extends IServiceBase {
 	
 	private static final Logger logger = LoggerFactory.getLogger(EndPointService.class);	
-
-	private Server server;
-	public Server getServer() {
-		return server;
-	}
-
-	private no.auke.p2p.m2.Socket peer_socket;
-	public no.auke.p2p.m2.Socket getPeerSocket() {
-		return peer_socket;
-	}
-
+	
 	private ConcurrentHashMap<String,EndPointRequest> requests = new ConcurrentHashMap<String,EndPointRequest>(); 
 	
 	public EndPointService (Server server) {
-				
-		this.server = server;
-
-    	if(server.getPeerServer().isRunning()) {
-    		
-    		peer_socket = getServer().getPeerServer().open(ServerParams.HTTP_SERVICE_PORT, new SocketListener(){
-    			
-    			@Override
-    			public void onIncomming(byte[] buffer) {
-
-    				gotRequest(new RequestMsg(buffer));
-    				
-    			}});
-
-    		logger.info("Started loopback from m2 network");
-    		
-    	} else {
-    		
-    		peer_socket=new Socket(0, null);
-    		logger.info("No loopback from m2 network");
-    		
-    	}
-
-		
+		super(server);
 	}	
 
 	public void gotRequest(RequestMsg msg) {
 
-    	logger.debug(" > request message " + msg.getReplyTo() + " for " + msg.getAddress());
-		if(!requests.containsKey(msg.getAddress())) {
+    	logger.debug("http request message from " + msg.getReplyTo() + " for " + msg.getAddress());
+
+    	if(!requests.containsKey(msg.getAddress()) || !requests.get(msg.getAddress()).isConnected()) {
 			
 			getServer().getNeighborService().addNeighbor(msg);
 			
 			// open a request session for each different host endpoint
-			
-			EndPointRequest request = new EndPointRequest(this,msg.getHost(),msg.getPort());
+			EndPointRequest request = new EndPointRequest(this,msg.getHost(),msg.getPort(),getNeighborSocket());
 			
 			requests.put(msg.getAddress(), request);
-			getServer().getPeerServer().getExecutor().execute(request);
+			getServer().getExecutor().execute(request);
 					
-		}
+		}		
 		requests.get(msg.getAddress()).gotRequest(msg);
+		
+	}
+	
+	@Override
+	public void onInBuffer(byte[] buffer) {
+
+		gotRequest(new RequestMsg(buffer));
 		
 	}
 	
@@ -112,6 +83,8 @@ public class EndPointService implements Runnable {
 			
 		}
 	}
+
+
 
 
 }

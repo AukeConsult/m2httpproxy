@@ -27,55 +27,29 @@ import no.auke.p2p.m2.Socket;
 import no.auke.p2p.m2.SocketListener;
 
 // proxy service 
-public class ClientService implements Runnable {
+public class ClientService extends IServiceBase {
 
 	private static final Logger logger = LoggerFactory.getLogger(ClientService.class);
-
 	
-	private Server server;
-	public Server getServer() {
-		return server;
-	}
-
-	private Socket peer_socket;
-	public Socket getPeerSocket() {
-		return peer_socket;
-	}
 
 	private ServerSocket tcp_Socket = null;
 
 	private ConcurrentHashMap<Integer,ClientRequest> requests = new ConcurrentHashMap<Integer,ClientRequest>(); 
 	private AtomicBoolean listening = new AtomicBoolean();
 	
-	
 	public ClientService (Server server) {
-				
-		this.server = server;
+		
+		super(server);
+		
         try {
         
         	tcp_Socket = new ServerSocket(ServerParams.PROXY_PORT);
 
-        	if(server.getPeerServer().isRunning()) {
-        		
-        		peer_socket = server.getPeerServer().open(ServerParams.HTTP_SERVICE_PORT, new SocketListener(){
+    		logger.info("Open socket for browser input on port: " + String.valueOf(ServerParams.PROXY_PORT));
 
-        			@Override
-        			public void onIncomming(byte[] buffer) {
-
-        				gotReply(new ReplyMsg(buffer));
-        				
-        			}});
-
-        		logger.info("Started loopback from m2 network");
-        		
-        	} else {
-        		
-        		peer_socket=new Socket(0, null);
-        		logger.info("No loopback from m2 network");
-        		
-        	}
+        	
         
-        } catch (IOException e) {
+        } catch (IOException e) { 
             
         	logger.error("Could not listen on port: " + ServerParams.PROXY_PORT);
         
@@ -83,7 +57,6 @@ public class ClientService implements Runnable {
 		
 	}	
 	
-
 	public void gotReply(ReplyMsg msg) {
 
 		if(requests.containsKey(msg.getSession())) {
@@ -97,6 +70,14 @@ public class ClientService implements Runnable {
 		}
 		
 	}	
+	
+	@Override
+	public void onInBuffer(byte[] buffer) {
+
+		gotReply(new ReplyMsg(buffer));
+
+	}
+
 	
 	@Override
 	public void run() {
@@ -113,9 +94,9 @@ public class ClientService implements Runnable {
         		try {
             		
             		
-                	ClientRequest request = new ClientRequest(this,tcp_Socket.accept());
+                	ClientRequest request = new ClientRequest(this,tcp_Socket.accept(),getNeighborSocket());
                 	requests.put(request.getSession(),request);
-                	server.getPeerServer().getExecutor().execute(request);
+                	getServer().getExecutor().execute(request);
             		
             	} catch (SocketTimeoutException tm) {
             	}
@@ -138,7 +119,7 @@ public class ClientService implements Runnable {
             }
 		
         	tcp_Socket.close();
-        	peer_socket.close();
+        	getNeighborSocket().close();
 		
         } catch (IOException e) {
 		
@@ -152,6 +133,7 @@ public class ClientService implements Runnable {
         }
 		
 	}
+
 
 
 }

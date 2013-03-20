@@ -1,97 +1,28 @@
 package no.auke.m2.proxy.request;
 
 import java.io.IOException;
-import java.io.PipedInputStream;
-import java.io.PipedOutputStream;
-import java.net.InetAddress;
 import java.util.Arrays;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
-import no.auke.m2.proxy.Server;
 import no.auke.m2.proxy.dataelements.ReplyMsg;
 import no.auke.m2.proxy.dataelements.RequestMsg;
-import no.auke.m2.proxy.services.ClientService;
-import no.auke.m2.proxy.services.EndPointService;
-import no.auke.m2.proxy.services.NeighBorhodService;
-import no.auke.p2p.m2.PeerServer;
-import no.auke.p2p.m2.Socket;
 import no.auke.util.StringConv;
-import junit.framework.TestCase;
 
 //import static org.mockito.Matchers.*;
 import static org.mockito.Mockito.*;
 //import static org.powermock.api.mockito.PowerMockito.mock;
 //import static org.powermock.api.mockito.PowerMockito.when;
 
-public class ClientRequestTest extends TestCase {
+public class ClientRequestTest extends RequestBase {
 
-	Server proxyserver;
 	ClientRequest request;
-	PeerServer peerserver;
-	ClientService clientservice;
-	EndPointService endpointservice;
-	NeighBorhodService neigborhodservice;
-	
-	Socket peer_socket;	
-	java.net.Socket socket;
-	
-	PipedOutputStream send_socket_pipe = new PipedOutputStream();
-	PipedInputStream read_socket_pipe = new PipedInputStream();
-	
-	private ExecutorService executor = Executors.newCachedThreadPool();
-	
+
 	public void setUp() throws Exception {
 		
-		peerserver = mock(PeerServer.class);
-		when(peerserver.getClientid()).thenReturn("localpoint");
-		when(peerserver.isRunning()).thenReturn(true);
-		when(peerserver.getExecutor()).thenReturn(executor);
-		
-		InetAddress address=mock(InetAddress.class);
-		when(address.getHostAddress()).thenReturn("test");
-
-		socket=mock(java.net.Socket.class);
-		when(socket.getInetAddress()).thenReturn(address);
-		when(socket.getPort()).thenReturn(1000);
-		
-		//when(socket.getInputStream()).thenReturn(new PipedInputStream(send_socket_pipe));
-		when(socket.getOutputStream()).thenReturn(new PipedOutputStream(read_socket_pipe));
-		
-		peer_socket = mock(Socket.class);
-		when(peer_socket.send(anyString(), anyInt(), (byte[])any())).thenReturn(true);
-
-		proxyserver = mock(Server.class); 
-		when(proxyserver.getPeerServer()).thenReturn(peerserver);
-		
-		clientservice = spy(new ClientService(proxyserver));
-		when(clientservice.getPeerSocket()).thenReturn(peer_socket);
-
-		endpointservice = spy(new EndPointService(proxyserver));
-		when(endpointservice.getPeerSocket()).thenReturn(peer_socket);
-
-		neigborhodservice = mock(NeighBorhodService.class);
-		when(neigborhodservice.getRemoteEndPoint(anyString())).thenReturn("endpoint");
-		
-		request = spy(new ClientRequest(clientservice, socket));
-
-		when(proxyserver.getNeighborService()).thenReturn(neigborhodservice);
-		when(proxyserver.getEndpointService()).thenReturn(endpointservice);
-		when(proxyserver.getClientService()).thenReturn(clientservice);
+		super.setUp();
+		request = spy(new ClientRequest(clientservice, socket, new RequestBase.NeighborCom()));
 		
 	}
 
-	private void send_tcp(byte[] sendhttp) throws IOException{
-		
-		send_socket_pipe = new PipedOutputStream();
-		when(socket.getInputStream()).thenReturn(new PipedInputStream(send_socket_pipe));
-
-		send_socket_pipe.write(sendhttp);
-		send_socket_pipe.flush();
-		send_socket_pipe.close();
-
-	}
-	
 	public void test_send_all_http_header_data() throws IOException {
 		
 		for(int i=0;i<10;i++) {
@@ -113,7 +44,7 @@ public class ClientRequestTest extends TestCase {
 			assertTrue(Arrays.equals(sendhttp, request.getLastRequestMsg().getHttpData()));
 			
 		}
-		
+	
 	}
 	
 	public void test_send_http() throws IOException {
@@ -130,9 +61,9 @@ public class ClientRequestTest extends TestCase {
 		
 	}
 	
-	public void test_send_http_peerservice_not_running() throws IOException {
+	public void test_send_http_comservice_not_running() throws IOException {
 		
-		when(peerserver.isRunning()).thenReturn(false);
+		request = spy(new ClientRequest(clientservice, socket, new RequestBase.NeighborCom(false)));
 
 		byte[] sendhttp = StringConv.getBytes("GET http://test.no format \r\nasdadsasdasd\r\nasdasdasd\r\n\r\n");
 		send_tcp(sendhttp);
@@ -142,9 +73,9 @@ public class ClientRequestTest extends TestCase {
 		
 	}	
 
-	public void test_send_http_peerservice_running() throws IOException {
+	public void test_send_http_comservice_running() throws IOException {
 		
-		when(peerserver.isRunning()).thenReturn(true);
+		request = spy(new ClientRequest(clientservice, socket, new RequestBase.NeighborCom(true)));
 
 		byte[] sendhttp = StringConv.getBytes("GET http://test.no format \r\nasdadsasdasd\r\nasdasdasd\r\n\r\n");
 		send_tcp(sendhttp);
@@ -169,6 +100,17 @@ public class ClientRequestTest extends TestCase {
 		
 	}
 	
+	public void test_send_http_strip_last_backspace() throws IOException {
+		
+		byte[] sendhttp = StringConv.getBytes("GET http://test.no/ format \r\nasdadsasdasd\r\nasdasdasd\r\n\r\n");
+		send_tcp(sendhttp);
+		request.run();	
+		
+		assertNotNull(request.getLastRequestMsg());
+		assertEquals("test.no",request.getLastRequestMsg().getHost());
+		
+	}	
+	
 	public void test_send_http_port() throws IOException {
 		
 		byte[] sendhttp = StringConv.getBytes("GET https://test.no:3000 format \r\nasdadsasdasd\r\nasdasdasd\r\n\r\n");
@@ -181,22 +123,6 @@ public class ClientRequestTest extends TestCase {
 		
 	}	
 
-	public void test_fail_send() throws IOException {
-		
-		when(peer_socket.send(anyString(), anyInt(), (byte[])any())).thenReturn(false);
-
-		byte[] sendhttp = StringConv.getBytes("GET http://test.no:3000 format \r\nasdadsasdasd\r\nasdasdasd\r\n\r\n");
-
-		send_tcp(sendhttp);
-		request.run();	
-		
-		assertNull(request.getLastRequestMsg());
-		assertNotNull(request.getLastReplyMsg());
-
-		assertEquals(ReplyMsg.ErrCode.LOCAL_ERR_SEND_REMOTE,request.getLastReplyMsg().getErrcode());
-		
-		
-	}
 
 	public void test_fail_no_endpoint() throws IOException {
 		
@@ -211,7 +137,6 @@ public class ClientRequestTest extends TestCase {
 		assertNotNull(request.getLastReplyMsg());
 
 		assertEquals(ReplyMsg.ErrCode.LOCAL_ERR_NO_ENDPOINT,request.getLastReplyMsg().getErrcode());
-		
 		
 	}
 	

@@ -7,7 +7,6 @@
  * 
  */
 
-
 package no.auke.m2.proxy.request;
 
 import java.io.ByteArrayOutputStream;
@@ -16,7 +15,7 @@ import java.net.Socket;
 import java.util.Random;
 import java.util.concurrent.atomic.AtomicLong;
 
-import no.auke.m2.proxy.ServerParams;
+import no.auke.m2.proxy.comunicate.INeighborCom;
 import no.auke.m2.proxy.dataelements.ReplyMsg;
 import no.auke.m2.proxy.dataelements.RequestMsg;
 import no.auke.m2.proxy.services.ClientService;
@@ -64,11 +63,18 @@ public class ClientRequest implements Runnable {
 		this.last_activity.set(last_activity_time);
 	}
 
-	public ClientRequest(ClientService service, Socket tcp_socket) {		
+	private INeighborCom neighborCom;
+	public INeighborCom getNeighborCom() {
+	
+		return neighborCom;
+	}
+
+	public ClientRequest(ClientService service, Socket tcp_socket, INeighborCom neighborCom) {		
 	
 		this.tcp_socket = tcp_socket;
 		this.session=sessions.nextInt();
 		this.service=service;
+		this.neighborCom=neighborCom;
 		
 		if(logger.isDebugEnabled())
 			logger.debug("new request");
@@ -156,9 +162,24 @@ public class ClientRequest implements Runnable {
 			while((bytes=tcp_socket.getInputStream().read(inbuffer,0,4096))!=-1){
 
 				buffer.write(inbuffer, 0,bytes);
-				
+
 				if(logger.isDebugEnabled())
 					logger.debug("input from browser, length " + String.valueOf(buffer.size()));
+
+				
+				
+				
+				
+				// check end of request
+				if(inbuffer[bytes-1]=='\n' &&
+				   inbuffer[bytes-2]=='\r' &
+				   inbuffer[bytes-3]=='\n' &&
+				   inbuffer[bytes-4]=='\r'    ) {
+					
+				   break; 
+					
+				}
+				
 			}
 			
 			byte[] data=buffer.toByteArray();
@@ -181,6 +202,12 @@ public class ClientRequest implements Runnable {
 					String http = commands[1].split("//")[0];
 					String address = commands[1].split("//")[1];
 					
+					if(address.endsWith("/")) {
+						
+						address = address.substring(0, address.length()-1);
+					
+					}
+					
 					host = address.split(":")[0];
 					port = address.split(":").length>1?Integer.valueOf(address.split(":")[1]):http.toLowerCase().equals("https:")?443:80;
 					
@@ -196,9 +223,9 @@ public class ClientRequest implements Runnable {
 
 				last_request = new RequestMsg(getService().getServer().getClientid(), endpoint, session, host, port, data);
 				
-				if(getService().getServer().getPeerServer().isRunning()) {
+				if(getNeighborCom().isRunning()) {
 					
-					if(getService().getPeerSocket().send(endpoint, service.getPeerSocket().getPort(), last_request.getBytes())){
+					if(getNeighborCom().sendHttpToEndPoint(last_request,endpoint)){
 						
 						// ok send
 						if(logger.isDebugEnabled())
@@ -216,10 +243,8 @@ public class ClientRequest implements Runnable {
 						
 						// sending direct reply with error
 						
-						gotReply(new ReplyMsg(ReplyMsg.ErrCode.LOCAL_ERR_SEND_REMOTE,"error sending request to remote proxy"));
+						gotReply(new ReplyMsg(ReplyMsg.ErrCode.LOCAL_ERR_SEND_REMOTE,getSession(),"error sending request to remote proxy"));
 						
-						// error sending
-						logger.warn("Error sending request to end point " + endpoint + " m2 error " + service.getPeerSocket().getLastMessage() );
 						
 					}
 					
@@ -233,7 +258,7 @@ public class ClientRequest implements Runnable {
 				
 			} else {
 
-				gotReply(new ReplyMsg(ReplyMsg.ErrCode.LOCAL_ERR_NO_ENDPOINT,"no endpoint found for " + browser_address));
+				gotReply(new ReplyMsg(ReplyMsg.ErrCode.LOCAL_ERR_NO_ENDPOINT,getSession(),"no endpoint found for " + browser_address));
 
 				// error sending
 				logger.warn("can not find any endpoint for address " + browser_address);
@@ -252,7 +277,7 @@ public class ClientRequest implements Runnable {
 
 		if(last_activity.get() > 0 && System.currentTimeMillis() - last_activity.get() > MAX_WAIT) {
 
-			gotReply(new ReplyMsg(ReplyMsg.ErrCode.LOCAL_ERR_REMOTE_TIMEOUT,"to long waiting for reply from proxy"));
+			gotReply(new ReplyMsg(ReplyMsg.ErrCode.LOCAL_ERR_REMOTE_TIMEOUT,getSession(),"to long waiting for reply from proxy"));
 		
 		}
 	}

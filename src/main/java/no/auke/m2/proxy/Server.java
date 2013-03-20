@@ -9,6 +9,8 @@
 
 package no.auke.m2.proxy;
 
+import java.util.concurrent.ExecutorService;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -30,6 +32,11 @@ public class Server {
 		return peerserver;
 	}	
 	
+	public ExecutorService getExecutor() {
+		
+		return peerserver.getExecutor();
+		
+	}
 	public static Server singelton;
 	
 	public ClientService getClientService() {
@@ -155,9 +162,9 @@ public class Server {
 		ServerParams.USE_REMOTE=false; // internal testing
 		ServerParams.setArgs(args);
 		Server service = new Server();
-		service.startProxy();
-		
+		service.startProxy();		
 	}
+	
 	public String getClientid() {
 
 		return ServerParams.USERID;

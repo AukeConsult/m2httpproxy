@@ -24,7 +24,8 @@ public class ReplyMsg {
 		LOCAL_ERR_NO_ENDPOINT,
 		LOCAL_ERR_REMOTE_TIMEOUT,
 		LOCAL_ERR_NO_REPLY_FROM_REMOTE,
-		REMOTE_ERR_NO_WEB_SERVER
+		REMOTE_ERR_NO_WEB_SERVER, 
+		REMOTE_ERR_IO
 		
 	}
 	
@@ -71,9 +72,10 @@ public class ReplyMsg {
 	}
 	
 	// error message for request
-	public ReplyMsg(ErrCode errcode, String message) {
+	public ReplyMsg(ErrCode errcode, int session, String message) {
 		
 		this.errcode=errcode;
+		this.session=session;
 		this.data = StringConv.getBytes(String.valueOf(errcode) + " -> " + message);
 		
 	}

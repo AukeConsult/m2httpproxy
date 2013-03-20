@@ -35,7 +35,7 @@ public class ReplyMsgTest extends TestCase {
 		
 		rnd.nextBytes(data);
 		
-		ReplyMsg msg = new ReplyMsg(ReplyMsg.ErrCode.LOCAL_ERR_SEND_REMOTE,"error sending remote");
+		ReplyMsg msg = new ReplyMsg(ReplyMsg.ErrCode.LOCAL_ERR_SEND_REMOTE,0,"error sending remote");
 		ReplyMsg msg2 = new ReplyMsg(msg.getBytes());
 		
 		assertEquals(msg.getErrcode(),msg2.getErrcode());
