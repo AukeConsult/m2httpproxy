@@ -40,7 +40,7 @@ public class EndPointRequest implements Runnable {
 	private int webhostport=0;
 	private String webhostaddress="";
 	
-	private BlockingQueue<RequestMsg> outMsg = new BlockingQueue<RequestMsg>(1000);
+	private BlockingQueue<RequestMsg> outMsgQueue = new BlockingQueue<RequestMsg>(1000);
 	
 	private java.net.Socket tcpsocket;
 	public java.net.Socket getTcpSocket() {
@@ -77,11 +77,11 @@ public class EndPointRequest implements Runnable {
 		
 		} catch (UnknownHostException e) {
 		
-			logger.warn("unknown host " + getAddress() +  " error " + e.getMessage());
+			logger.warn("unknown host " + getWebAddress() +  " error " + e.getMessage());
 
 		} catch (IOException e) {
 
-			logger.warn("IOException host " + getAddress() +  " error " + e.getMessage());
+			logger.warn("IOException host " + getWebAddress() +  " error " + e.getMessage());
 
 		}
 	
@@ -92,7 +92,7 @@ public class EndPointRequest implements Runnable {
 		if(isConnected()) {
 
 			lastused = System.currentTimeMillis();
-			outMsg.add(msg);
+			outMsgQueue.add(msg);
 
 			return true;
 			
@@ -117,7 +117,7 @@ public class EndPointRequest implements Runnable {
 		} catch (IOException e) {
 			
 			sendReplyToClient(new ReplyMsg(ReplyMsg.ErrCode.REMOTE_ERR_SEND_REQUEST,requestMsg.getSession(),e.getMessage()),requestMsg);
-			logger.warn("IO error sending request to " + getAddress() +  " error " + e.getMessage());
+			logger.warn("IO error sending request to " + getWebAddress() +  " error " + e.getMessage());
 			return false;
 		}
 				
@@ -149,7 +149,7 @@ public class EndPointRequest implements Runnable {
 			
 		} catch (IOException e) {
 
-			logger.warn("IO error reading result from " + getAddress() +  " error " + e.getMessage());
+			logger.warn("IO error reading result from " + getWebAddress() +  " error " + e.getMessage());
 			sendReplyToClient(new ReplyMsg(ReplyMsg.ErrCode.REMOTE_ERR_READ_REQUEST,requestMsg.getSession(),e.getMessage()),requestMsg);
 			
 			return false;
@@ -177,20 +177,26 @@ public class EndPointRequest implements Runnable {
 	@Override
 	public void run() {
 
-		RequestMsg requestMsg;
 		try {
 		
-			while(!isconnected.get() && (requestMsg = outMsg.take())!=null) {
+			RequestMsg requestMsg=null;
+
+			while(!isconnected.get() && (requestMsg = outMsgQueue.take())!=null) {
 
 				if(logger.isDebugEnabled())
-					logger.debug("handling request from " + requestMsg.getReplyTo() +  " to " + getAddress());
+					logger.debug("handling request from " + requestMsg.getReplyTo() +  " to " + getWebAddress());
 				
 				logger.debug(new String(requestMsg.getHttpData()));
 				lastused = System.currentTimeMillis();
 
 				if(sendHttpRequest(requestMsg)) {
 
-					readHttpResultSendToClient(requestMsg);
+					if(!readHttpResultSendToClient(requestMsg)){
+
+						// disconnect this session
+						isconnected.set(false);
+						
+					}
 					
 				} else {
 					
@@ -209,7 +215,7 @@ public class EndPointRequest implements Runnable {
 
 		} catch (InterruptedException e) {
 		} catch (IOException e) {
-			logger.warn("IO error closing socket to " + getAddress() +  " error " + e.getMessage());
+			logger.warn("IO error closing socket to " + getWebAddress() +  " error " + e.getMessage());
 		}
 	
 	}
@@ -221,7 +227,7 @@ public class EndPointRequest implements Runnable {
 	
 	}
 
-	public String getAddress() {
+	public String getWebAddress() {
 
 		return webhostaddress + ":" + String.valueOf(webhostport);
 	}

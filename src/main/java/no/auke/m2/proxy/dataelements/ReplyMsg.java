@@ -88,7 +88,8 @@ public class ReplyMsg {
 		
 		this.errcode=errcode;
 		this.session=session;
-		this.data = StringConv.getBytes(String.valueOf(errcode) + " -> " + message);
+		this.iscomplete=true;
+		this.data = StringConv.getBytes(message);
 		
 	}
 

@@ -69,7 +69,7 @@ public class EndPointService extends IServiceBase {
         	
         		if(check.isComplete()) {
         			
-        			requests.remove(check.getAddress());
+        			requests.remove(check.getWebAddress());
         		}
         		
         	}
