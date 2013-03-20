@@ -45,10 +45,10 @@ public class ClientRequest implements Runnable {
 	private Socket tcp_socket = null;
 	private int session=0; 
 	
-	private ClientService service;
-	public ClientService getService() {
+	private ClientService clientservice;
+	public ClientService getClientService() {
 	
-		return service;
+		return clientservice;
 	}
 	
 	private boolean iscomplete=false;
@@ -69,11 +69,11 @@ public class ClientRequest implements Runnable {
 		return neighborCom;
 	}
 
-	public ClientRequest(ClientService service, Socket tcp_socket, INeighborCom neighborCom) {		
+	public ClientRequest(ClientService clientservice, Socket tcp_socket, INeighborCom neighborCom) {		
 	
 		this.tcp_socket = tcp_socket;
 		this.session=sessions.nextInt();
-		this.service=service;
+		this.clientservice=clientservice;
 		this.neighborCom=neighborCom;
 		
 		if(logger.isDebugEnabled())
@@ -92,6 +92,16 @@ public class ClientRequest implements Runnable {
 		if(reply.getErrcode()!=ReplyMsg.ErrCode.OK){
 			
 			iscomplete=true;
+		
+		} else if(reply.getErrcode()==ReplyMsg.ErrCode.REMOTE_ERR_READ_REQUEST) {
+		
+			// remote error reading result from web server
+
+		} else if(reply.getErrcode()==ReplyMsg.ErrCode.REMOTE_ERR_SEND_REQUEST) {
+			
+			// remote error sending request to web server
+			
+			logger.warn("remote REMOTE_ERR_SEND_REQUEST " + reply.getMessage());
 		}
 		
 		if(reply.getData()!=null) {
@@ -216,12 +226,12 @@ public class ClientRequest implements Runnable {
 				
 			}
 			
-			String endpoint = getService().getServer().getNeighborService().getRemoteEndPoint(browser_address);
+			String endpoint = getClientService().getServer().getNeighborService().getRemoteEndPoint(browser_address);
 			if(!endpoint.isEmpty()) {
 
 				logger.debug(new String(data));
 
-				last_request = new RequestMsg(getService().getServer().getClientid(), endpoint, session, host, port, data);
+				last_request = new RequestMsg(getClientService().getServer().getClientid(), endpoint, session, host, port, data);
 				
 				if(getNeighborCom().isRunning()) {
 					
@@ -238,8 +248,8 @@ public class ClientRequest implements Runnable {
 						
 						last_request=null;
 						
-						getService().getServer().getNeighborService().resetRemoteEndPoint(browser_address);
-						getService().getServer().getNeighborService().setNotAlive(endpoint);
+						getClientService().getServer().getNeighborService().resetRemoteEndPoint(browser_address);
+						getClientService().getServer().getNeighborService().setNotAlive(endpoint);
 						
 						// sending direct reply with error
 						
@@ -252,7 +262,7 @@ public class ClientRequest implements Runnable {
 				} else {
 					
 					// sending directly to the local end point
-					getService().getServer().getEndpointService().gotRequest(last_request);
+					getClientService().getServer().getEndpointService().gotRequest(last_request);
 					
 				}
 				

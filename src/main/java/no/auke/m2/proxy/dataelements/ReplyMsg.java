@@ -11,7 +11,6 @@ package no.auke.m2.proxy.dataelements;
 
 import java.util.List;
 
-import no.auke.m2.proxy.dataelements.ReplyMsg.ErrCode;
 import no.auke.util.ByteUtil;
 import no.auke.util.StringConv;
 
@@ -24,8 +23,8 @@ public class ReplyMsg {
 		LOCAL_ERR_NO_ENDPOINT,
 		LOCAL_ERR_REMOTE_TIMEOUT,
 		LOCAL_ERR_NO_REPLY_FROM_REMOTE,
-		REMOTE_ERR_NO_WEB_SERVER, 
-		REMOTE_ERR_IO
+		REMOTE_ERR_SEND_REQUEST, 
+		REMOTE_ERR_READ_REQUEST
 		
 	}
 	
@@ -54,6 +53,19 @@ public class ReplyMsg {
 
 		return errcode;
 	
+	}
+	
+	public String getMessage() {
+		
+		if(errcode!=ErrCode.OK) {
+			
+			return StringConv.UTF8(data);
+			
+		} else {
+			
+			return "";
+		}
+		
 	}
 
 	private int session=0;
