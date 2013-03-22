@@ -32,6 +32,12 @@ public class RequestBase extends TestCase {
 
 		boolean running=true;
 		
+		
+		public void setRunning(boolean running) {
+		
+			this.running = running;
+		}
+
 		public NeighborCom () {
 			
 		}
@@ -63,8 +69,11 @@ public class RequestBase extends TestCase {
 		@Override
 		public void close() {
 
-			// TODO Auto-generated method stub
-			
+		}
+
+		@Override
+		public String getClientid() {
+			return "";
 		}
 		
 	}

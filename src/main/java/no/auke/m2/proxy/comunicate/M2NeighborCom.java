@@ -44,7 +44,6 @@ public class M2NeighborCom extends INeighborCom {
 	@Override
 	public boolean sendHttpToEndPoint(RequestMsg msg, String sendTo) {
 
-		// error sending
 		if(getPeerSocket().send(sendTo, getPeerSocket().getPort(), msg.getBytes())) {
 			
 			return true;
@@ -62,6 +61,11 @@ public class M2NeighborCom extends INeighborCom {
 
 		peer_socket.close();
 		
+	}
+
+	@Override
+	public String getClientid() {
+		return getPeerSocket().getService().getClientid();
 	}
 
 }

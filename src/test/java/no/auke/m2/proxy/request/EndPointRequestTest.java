@@ -1,44 +1,38 @@
 package no.auke.m2.proxy.request;
 
+import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.anyInt;
+import static org.mockito.Matchers.anyString;
 import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.when;
+
+import org.apache.http.impl.client.DefaultHttpClient;
+
+import no.auke.m2.proxy.dataelements.RequestMsg;
+import no.auke.util.StringConv;
 
 public class EndPointRequestTest extends RequestBase {
 	
-	final String end = "\r\n\r\n"; 
-	private String getHttpGet() {
-		
-		return "GET HTTP://wiki.auke.no /HTTP.1.1\r\n" + end; 
-		
-	} 
-
 	EndPointRequest request;
-
 	public void setUp() throws Exception {
-		
 		super.setUp();
 		
-	}
-	public void test_connect_socket() {
+		DefaultHttpClient httpclient = new DefaultHttpClient();
+		when(endpointservice.getHttpClient()).thenReturn(httpclient);
 
-		request = spy(new EndPointRequest(endpointservice, "wiki.auke.no",80, new RequestBase.NeighborCom()));
-		assertTrue(request.isConnected());
-				
 	}
 	
 	public void test_send_socket() {
 
-		request = spy(new EndPointRequest(endpointservice, "wiki.auke.no",80,new RequestBase.NeighborCom()));
-		assertTrue(request.isConnected());
+		request = spy(new EndPointRequest(endpointservice,
+					  new RequestMsg("", "", 100, "GET HTTP://startsiden.no/ FORMAT \r\n\r\n".getBytes()), 
+				      new RequestBase.NeighborCom())
+		);
 		
-		java.net.Socket tcpsocket = request.getTcpSocket();
-		
-		
-		
-	
-		
-		
+		request.run();
+		assertNotNull(request.getLastReplyMsg());
+		System.out.println(StringConv.UTF8(request.getLastReplyMsg().getData()));
 		
 	}
 	
-
 }

@@ -54,9 +54,6 @@ public class ClientRequestTest extends RequestBase {
 		request.run();	
 		
 		assertNotNull(request.getLastRequestMsg());
-		assertEquals("test.no",request.getLastRequestMsg().getHost());
-		assertEquals(80,request.getLastRequestMsg().getPort());
-		
 		assertTrue(Arrays.equals(sendhttp, request.getLastRequestMsg().getHttpData()));
 		
 	}
@@ -85,45 +82,6 @@ public class ClientRequestTest extends RequestBase {
 		
 	}	
 	
-
-	public void test_send_https() throws IOException {
-		
-		byte[] sendhttp = StringConv.getBytes("GET https://test.no format \r\nasdadsasdasd\r\nasdasdasd\r\n\r\n");
-		send_tcp(sendhttp);
-		request.run();	
-		
-		assertNotNull(request.getLastRequestMsg());
-		assertEquals("test.no",request.getLastRequestMsg().getHost());
-		assertEquals(443,request.getLastRequestMsg().getPort());
-		
-		assertTrue(Arrays.equals(sendhttp, request.getLastRequestMsg().getHttpData()));
-		
-	}
-	
-	public void test_send_http_strip_last_backspace() throws IOException {
-		
-		byte[] sendhttp = StringConv.getBytes("GET http://test.no/ format \r\nasdadsasdasd\r\nasdasdasd\r\n\r\n");
-		send_tcp(sendhttp);
-		request.run();	
-		
-		assertNotNull(request.getLastRequestMsg());
-		assertEquals("test.no",request.getLastRequestMsg().getHost());
-		
-	}	
-	
-	public void test_send_http_port() throws IOException {
-		
-		byte[] sendhttp = StringConv.getBytes("GET https://test.no:3000 format \r\nasdadsasdasd\r\nasdasdasd\r\n\r\n");
-		send_tcp(sendhttp);
-		request.run();	
-		
-		assertNotNull(request.getLastRequestMsg());
-		assertEquals("test.no",request.getLastRequestMsg().getHost());
-		assertEquals(3000,request.getLastRequestMsg().getPort());
-		
-	}	
-
-
 	public void test_fail_no_endpoint() throws IOException {
 		
 		when(neigborhodservice.getRemoteEndPoint(anyString())).thenReturn("");

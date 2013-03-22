@@ -75,10 +75,7 @@ public class ClientRequest implements Runnable {
 		this.session=sessions.nextInt();
 		this.clientservice=clientservice;
 		this.neighborCom=neighborCom;
-		
-		if(logger.isDebugEnabled())
-			logger.debug("new request");
-	
+			
 	}
 	
 	public boolean gotReply(ReplyMsg reply){
@@ -87,7 +84,7 @@ public class ClientRequest implements Runnable {
 		last_activity.set(System.currentTimeMillis());
 		
 		if(logger.isDebugEnabled())
-			logger.debug("got reply");
+			logger.debug("got reply, length " + String.valueOf(reply.getData().length));
 		
 		if(reply.getErrcode()!=ReplyMsg.ErrCode.OK){
 			
@@ -97,6 +94,8 @@ public class ClientRequest implements Runnable {
 		
 			// remote error reading result from web server
 
+			logger.warn("remote REMOTE_ERR_READ_REQUEST " + reply.getMessage());
+
 		} else if(reply.getErrcode()==ReplyMsg.ErrCode.REMOTE_ERR_SEND_REQUEST) {
 			
 			// remote error sending request to web server
@@ -104,12 +103,13 @@ public class ClientRequest implements Runnable {
 			logger.warn("remote REMOTE_ERR_SEND_REQUEST " + reply.getMessage());
 		}
 		
-		if(reply.getData()!=null) {
+		if(reply.getErrcode()==ReplyMsg.ErrCode.OK && reply.getData()!=null) {
 			
 			try {
 
-				// private DataOutputStream replyClientStream = new DataOutputStream(tcp_socket.getOutputStream());
-
+				if(logger.isDebugEnabled())
+					logger.debug(new String(reply.getData()));				
+				
 				tcp_socket.getOutputStream().write(reply.getData(), 0, reply.getData().length);
 				tcp_socket.getOutputStream().flush();
 			
@@ -119,6 +119,10 @@ public class ClientRequest implements Runnable {
 				return false;
 			}
 		
+		} else {
+			
+			logger.warn("got empty reply");
+			
 		}
 		
 		if(iscomplete || reply.isComplete()) {
@@ -155,9 +159,6 @@ public class ClientRequest implements Runnable {
 		// get response from server
 		// send response to user
 
-		if(logger.isDebugEnabled())
-			logger.debug("started request thread");
-		
 		try {
 
 			String browser_address = tcp_socket.getInetAddress().getHostAddress() + ":"+ String.valueOf(tcp_socket.getPort());
@@ -176,10 +177,6 @@ public class ClientRequest implements Runnable {
 				if(logger.isDebugEnabled())
 					logger.debug("input from browser, length " + String.valueOf(buffer.size()));
 
-				
-				
-				
-				
 				// check end of request
 				if(inbuffer[bytes-1]=='\n' &&
 				   inbuffer[bytes-2]=='\r' &
@@ -194,84 +191,61 @@ public class ClientRequest implements Runnable {
 			
 			byte[] data=buffer.toByteArray();
 
-			
-			String host="";
-			int port=0;
-			
-			byte[] first_line = new byte[1000];
-			for(int i=0;i<1000;i++){
-				
-				first_line[i]=data[i];
-				if(first_line[i]=='\n') {
-					
-					// get first line
-					String http_command = new String(first_line);
+			if(data.length>0) {
 
-					String[] commands = http_command.split(" ");
+				String endpoint = getClientService().getServer().getNeighborService().getRemoteEndPoint(browser_address);
+				if(!endpoint.isEmpty()) {
+
+					logger.debug(new String(data));
+
+					last_request = new RequestMsg(getClientService().getServer().getClientid(), endpoint, session, data);
 					
-					String http = commands[1].split("//")[0];
-					String address = commands[1].split("//")[1];
-					
-					if(address.endsWith("/")) {
+					if(getNeighborCom().isRunning()) {
 						
-						address = address.substring(0, address.length()-1);
-					
-					}
-					
-					host = address.split(":")[0];
-					port = address.split(":").length>1?Integer.valueOf(address.split(":")[1]):http.toLowerCase().equals("https:")?443:80;
-					
-					break;
-				}
-				
-			}
-			
-			String endpoint = getClientService().getServer().getNeighborService().getRemoteEndPoint(browser_address);
-			if(!endpoint.isEmpty()) {
+						if(getNeighborCom().sendHttpToEndPoint(last_request,endpoint)){
+							
+							// ok send
+							if(logger.isDebugEnabled())
+								logger.debug("request sent to " + endpoint + " from " + browser_address +  " session " + String.valueOf(session));
 
-				logger.debug(new String(data));
+							last_activity.set(System.currentTimeMillis());
+							
 
-				last_request = new RequestMsg(getClientService().getServer().getClientid(), endpoint, session, host, port, data);
-				
-				if(getNeighborCom().isRunning()) {
-					
-					if(getNeighborCom().sendHttpToEndPoint(last_request,endpoint)){
+						} else {
+							
+							last_request=null;
+							
+							getClientService().getServer().getNeighborService().resetRemoteEndPoint(browser_address);
+							getClientService().getServer().getNeighborService().setNotAlive(endpoint);
+							
+							// sending direct reply with error
+							
+							gotReply(new ReplyMsg(ReplyMsg.ErrCode.LOCAL_ERR_SEND_REMOTE,getSession(),"error sending request to remote proxy"));
+							
+							
+						}
 						
-						// ok send
-						if(logger.isDebugEnabled())
-							logger.debug("request sent to " + endpoint + " from " + browser_address +  " session " + String.valueOf(session));
-
-						last_activity.set(System.currentTimeMillis());
 						
-
 					} else {
 						
-						last_request=null;
-						
-						getClientService().getServer().getNeighborService().resetRemoteEndPoint(browser_address);
-						getClientService().getServer().getNeighborService().setNotAlive(endpoint);
-						
-						// sending direct reply with error
-						
-						gotReply(new ReplyMsg(ReplyMsg.ErrCode.LOCAL_ERR_SEND_REMOTE,getSession(),"error sending request to remote proxy"));
-						
+						// sending directly to the local end point
+						getClientService().getServer().getEndpointService().gotRequest(last_request);
 						
 					}
 					
-					
 				} else {
-					
-					// sending directly to the local end point
-					getClientService().getServer().getEndpointService().gotRequest(last_request);
+
+					gotReply(new ReplyMsg(ReplyMsg.ErrCode.LOCAL_ERR_NO_ENDPOINT,getSession(),"no endpoint found for " + browser_address));
+
+					// error sending
+					logger.warn("can not find any endpoint for address " + browser_address);
 					
 				}
 				
+				
 			} else {
-
-				gotReply(new ReplyMsg(ReplyMsg.ErrCode.LOCAL_ERR_NO_ENDPOINT,getSession(),"no endpoint found for " + browser_address));
-
-				// error sending
-				logger.warn("can not find any endpoint for address " + browser_address);
+				
+				logger.info("request from browser is empty");
 				
 			}
 

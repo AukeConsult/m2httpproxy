@@ -8,5 +8,7 @@ public abstract class INeighborCom {
 	public abstract boolean isRunning();
 	public abstract boolean replyHttpFromEndPoint(ReplyMsg msg, String replyTo);
 	public abstract boolean sendHttpToEndPoint(RequestMsg msg, String sendTo);
-	public abstract void close();	
+	public abstract void close();
+	public abstract String getClientid();
+
 }

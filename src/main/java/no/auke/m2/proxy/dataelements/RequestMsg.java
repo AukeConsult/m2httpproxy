@@ -31,28 +31,16 @@ public class RequestMsg {
 		return httpdata;
 	}
 	
-	public String getHost() {
-		return host;
-	}
-
-	public int getPort() {
-		return port;
-	}	
-
 	private String replyTo="";
 	private String sendTo="";	
 	private int session=0;
 	private byte[] httpdata;
-	private int port=0;
-	private String host="";
 
-	public RequestMsg(String replyTo, String sendTo, int session, String host, int port, byte[] httpdata) {
+	public RequestMsg(String replyTo, String sendTo, int session, byte[] httpdata) {
 		
 		this.replyTo=replyTo.isEmpty()?"":replyTo;
 		this.sendTo=sendTo.isEmpty()?"":sendTo;
 		this.session=session;
-		this.host=host.isEmpty()?"":host;
-		this.port=port;
 		this.httpdata=httpdata;
 	
 	}
@@ -63,9 +51,7 @@ public class RequestMsg {
         replyTo = StringConv.UTF8(subs.get(0));
         sendTo = StringConv.UTF8(subs.get(1));
         session = ByteUtil.getInt(subs.get(2));
-        host = StringConv.UTF8(subs.get(3));
-        port = ByteUtil.getInt(subs.get(4));
-        httpdata = subs.get(5);
+        httpdata = subs.get(3);
 		
 	}
 	
@@ -76,18 +62,9 @@ public class RequestMsg {
 				StringConv.getBytes(replyTo),
 				StringConv.getBytes(sendTo),
 				ByteUtil.getBytes(session, 4),
-				StringConv.getBytes(host),
-				ByteUtil.getBytes(port, 4),
 				httpdata
 
 			);
 	}
-
-	public String getAddress() {
-	
-		return host + ":" + String.valueOf(port);
-	
-	}
-
 	
 }

@@ -16,14 +16,12 @@ public class RequestMsgTest extends TestCase {
 		
 		rnd.nextBytes(data); 
 		
-		RequestMsg msg = new RequestMsg("toleif", "fromleif", 100, "localhost", 2100, data);
+		RequestMsg msg = new RequestMsg("toleif", "fromleif", 100, data);
 		
 		RequestMsg msg2 = new RequestMsg(msg.getBytes());
 		assertEquals(msg.getReplyTo(),msg2.getReplyTo());
 		assertEquals(msg.getSendTo(),msg2.getSendTo());
 		assertEquals(msg.getSession(),msg2.getSession());
-		assertEquals(msg.getHost(),msg2.getHost());
-		assertEquals(msg.getPort(),msg2.getPort());
 		assertTrue(Arrays.equals(msg.getHttpData(), msg2.getHttpData()));
 		
 	}

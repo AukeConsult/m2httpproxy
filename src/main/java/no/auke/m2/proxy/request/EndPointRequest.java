@@ -10,8 +10,18 @@
 package no.auke.m2.proxy.request;
 
 import java.io.IOException;
-import java.net.UnknownHostException;
+import java.net.MalformedURLException;
+import java.net.URISyntaxException;
+import java.net.URL;
 import java.util.concurrent.atomic.AtomicBoolean;
+
+import org.apache.http.Header;
+import org.apache.http.HttpEntity;
+import org.apache.http.HttpHost;
+import org.apache.http.HttpResponse;
+import org.apache.http.client.ClientProtocolException;
+import org.apache.http.client.methods.HttpGet;
+import org.apache.http.util.EntityUtils;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -21,37 +31,16 @@ import no.auke.m2.proxy.dataelements.ReplyMsg;
 import no.auke.m2.proxy.dataelements.RequestMsg;
 import no.auke.m2.proxy.services.EndPointService;
 import no.auke.p2p.m2.general.BlockingQueue;
+import no.auke.util.StringConv;
 
 public class EndPointRequest implements Runnable {
 	
 	private static final Logger logger = LoggerFactory.getLogger(EndPointRequest.class);	
 	
-	private static final int BUFFER_SIZE = 32768;
-	private static final long MAX_INACTIVE = 60000; //(one minute) 
-
 	private EndPointService endpointservice;
 	public EndPointService getEndPointService() {
 	
 		return endpointservice;
-	}
-
-	private long lastused=0;
-	
-	private int webhostport=0;
-	private String webhostaddress="";
-	
-	private BlockingQueue<RequestMsg> outMsgQueue = new BlockingQueue<RequestMsg>(1000);
-	
-	private java.net.Socket tcpsocket;
-	public java.net.Socket getTcpSocket() {
-	
-		return tcpsocket;
-	}
-
-	private AtomicBoolean isconnected = new AtomicBoolean();
-	public boolean isConnected() {
-	
-		return isconnected.get();
 	}
 
 	private INeighborCom neighborCom;
@@ -59,108 +48,90 @@ public class EndPointRequest implements Runnable {
 	
 		return neighborCom;
 	}
+	
+	private ReplyMsg last_replyMsg;
+	public ReplyMsg getLastReplyMsg() {
+	
+		return last_replyMsg;
+	}
 
-	public EndPointRequest(EndPointService endpointservice, String webhostaddress, int webhostport, INeighborCom neighborCom) {		
+	RequestMsg msg=null;
+	public EndPointRequest(EndPointService endpointservice,RequestMsg msg,INeighborCom neighborCom) {		
 	
 		this.endpointservice=endpointservice;
-		this.webhostaddress=webhostaddress;
-		this.webhostport=webhostport;
 		this.neighborCom=neighborCom;
-
-		isconnected.set(false);
-		try {
-
-			logger.debug("open endpoint socket for");
-			
-			tcpsocket = new java.net.Socket(this.webhostaddress, this.webhostport);
-			isconnected.set(tcpsocket.isConnected());
-		
-		} catch (UnknownHostException e) {
-		
-			logger.warn("unknown host " + getWebAddress() +  " error " + e.getMessage());
-
-		} catch (IOException e) {
-
-			logger.warn("IOException host " + getWebAddress() +  " error " + e.getMessage());
-
-		}
+		this.msg=msg;
 	
 	}	
 	
-	public boolean gotRequest(RequestMsg msg){
-
-		if(isConnected()) {
-
-			lastused = System.currentTimeMillis();
-			outMsgQueue.add(msg);
-
-			return true;
-			
-		} else {
-			
-			return false;
-			
+	public StringBuilder readGet(String[] header, URL url) throws ClientProtocolException, IOException {
+		
+        HttpHost target = new HttpHost(url.getHost(), url.getPort(), url.getProtocol());
+        HttpGet req = new HttpGet(url.getPath() + (url.getQuery()==null?"":url.getQuery()));
+        
+		for(int i=1;i<header.length;i++){
+			req.setHeader(header[i].split(":")[0], header[i].split(":")[1]);
+            System.out.println(header[i]);
 		}
-	
+
+        HttpResponse rsp = getEndPointService().getHttpClient().execute(target, req);
+        HttpEntity entity = rsp.getEntity();
+
+        StringBuilder reponsestring = new StringBuilder();
+        reponsestring.append(rsp.getStatusLine() + "\r\n");
+
+        Header[] headers = rsp.getAllHeaders();
+        for (int i = 0; i<headers.length; i++) {
+            reponsestring.append(headers[i] + "\r\n");
+        }
+        if (entity != null) {
+        	reponsestring.append(EntityUtils.toString(entity)+"\r\n");
+        }
+        reponsestring.append("\r\n");
+        
+		return reponsestring;
+		
 	}
 	
-	public boolean sendHttpRequest(RequestMsg requestMsg) {
+	public void readHttpResultSendToClient(RequestMsg requestMsg) {
 		
+		last_replyMsg=null;
 		try {
-			
-			getTcpSocket().getOutputStream().write(requestMsg.getHttpData(), 0, requestMsg.getHttpData().length);
-			getTcpSocket().getOutputStream().flush();
-			
-			Thread.yield();
-			return true;
 
-		} catch (IOException e) {
+			String[] alldata = StringConv.UTF8(requestMsg.getHttpData()).split("\r\n\r\n");
+
+			String[] header = alldata[0].split("\r\n");
+			String verb = header[0].split(" ")[0];
+			String urlstring = header[0].split(" ")[1];
 			
-			sendReplyToClient(new ReplyMsg(ReplyMsg.ErrCode.REMOTE_ERR_SEND_REQUEST,requestMsg.getSession(),e.getMessage()),requestMsg);
-			logger.warn("IO error sending request to " + getWebAddress() +  " error " + e.getMessage());
-			return false;
-		}
-				
-	}
-	
-	public boolean readHttpResultSendToClient(RequestMsg requestMsg) {
-		
-		byte[] datain = new byte[BUFFER_SIZE];
-		int cnt=0;
-		int index = 0;
-		
-		try {
+			URL url = new URL(urlstring);
 			
-			while ((index = getTcpSocket().getInputStream().read(datain, 0, BUFFER_SIZE))!= -1) {
+			if(verb.toUpperCase().equals("GET")) {
 				
-				byte[] dataout = new byte[index];
-				if(index>0) {
-					
-					System.arraycopy(datain, 0, dataout, 0, index);
-				}
-				
-				sendReplyToClient(new ReplyMsg(requestMsg.getSession(), cnt, index < BUFFER_SIZE, dataout),requestMsg);
-				lastused = System.currentTimeMillis();
-				cnt++;
-					
+				StringBuilder reponsestring = readGet(header,url);
+				sendReplyToClient(new ReplyMsg(requestMsg.getSession(), 0, true, StringConv.getBytes(reponsestring.toString())),requestMsg);
+				System.out.println(reponsestring.toString());
+
 			}
 			
-			return true;
+		} catch (MalformedURLException e) {
+
+			logger.warn("MalformedURLException reading result " + e.getMessage());
+			sendReplyToClient(new ReplyMsg(ReplyMsg.ErrCode.REMOTE_ERR_READ_REQUEST,requestMsg.getSession(),e.getMessage()),requestMsg);
 			
 		} catch (IOException e) {
 
-			logger.warn("IO error reading result from " + getWebAddress() +  " error " + e.getMessage());
+			logger.warn("IOException reading result " + e.getMessage());
 			sendReplyToClient(new ReplyMsg(ReplyMsg.ErrCode.REMOTE_ERR_READ_REQUEST,requestMsg.getSession(),e.getMessage()),requestMsg);
-			
-			return false;
 
 		}
 		
-	}
-		
+	}	
+	
 	public boolean sendReplyToClient(ReplyMsg replyMsg, RequestMsg requestMsg) {
 		
-		if(!requestMsg.getReplyTo().equals(getEndPointService().getServer().getClientid())) {
+		last_replyMsg = replyMsg;
+		if(!requestMsg.getReplyTo().equals(getNeighborCom().getClientid())) {
 
 			return getNeighborCom().replyHttpFromEndPoint(replyMsg, requestMsg.getReplyTo());
 			
@@ -171,65 +142,17 @@ public class EndPointRequest implements Runnable {
 			return true;
 		}
 		
-		
 	}
 	
 	@Override
 	public void run() {
 
-		try {
+		if(logger.isDebugEnabled())
+			logger.debug("start request thread");
 		
-			RequestMsg requestMsg=null;
+		logger.debug(new String(msg.getHttpData()));
+		readHttpResultSendToClient(msg);
 
-			while(!isconnected.get() && (requestMsg = outMsgQueue.take())!=null) {
-
-				if(logger.isDebugEnabled())
-					logger.debug("handling request from " + requestMsg.getReplyTo() +  " to " + getWebAddress());
-				
-				logger.debug(new String(requestMsg.getHttpData()));
-				lastused = System.currentTimeMillis();
-
-				if(sendHttpRequest(requestMsg)) {
-
-					if(!readHttpResultSendToClient(requestMsg)){
-
-						// disconnect this session
-						isconnected.set(false);
-						
-					}
-					
-				} else {
-					
-					// disconnect this session
-					isconnected.set(false);
-				
-				}
-				
-			}
-
-			if(tcpsocket!=null) {
-
-				tcpsocket.close();
-				
-			}			
-
-		} catch (InterruptedException e) {
-		} catch (IOException e) {
-			logger.warn("IO error closing socket to " + getWebAddress() +  " error " + e.getMessage());
-		}
-	
-	}
-
-	public boolean isComplete() {
-		
-		isconnected.set(System.currentTimeMillis() - lastused > MAX_INACTIVE);
-		return isconnected.get();
-	
-	}
-
-	public String getWebAddress() {
-
-		return webhostaddress + ":" + String.valueOf(webhostport);
 	}
 
 }
