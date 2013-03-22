@@ -88,14 +88,13 @@ public class ClientService extends IServiceBase {
         		
             	tcp_Socket.setSoTimeout(ServerParams.CHECK_FREQUENCY);
             	
-            	
             	while (listening.get()) {
                 	
             		logger.debug("check requests");
             		try {
                 		
                 		
-                    	ClientRequest request = new ClientRequest(this,tcp_Socket.accept(),getNeighborSocket());
+                    	ClientRequest request = new ClientRequest(this,tcp_Socket.accept(),getNeighborCom());
                     	requests.put(request.getSession(),request);
                     	getServer().getExecutor().execute(request);
                 		
@@ -122,7 +121,7 @@ public class ClientService extends IServiceBase {
         	}
 
         	tcp_Socket.close();
-        	getNeighborSocket().close();
+        	getNeighborCom().close();
 		
         } catch (IOException e) {
 		

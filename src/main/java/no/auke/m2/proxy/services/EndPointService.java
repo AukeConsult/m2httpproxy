@@ -9,9 +9,6 @@
 
 package no.auke.m2.proxy.services;
 
-import java.util.concurrent.ConcurrentHashMap;
-
-import org.apache.http.impl.client.DefaultHttpClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -24,27 +21,17 @@ public class EndPointService extends IServiceBase {
 	
 	private static final Logger logger = LoggerFactory.getLogger(EndPointService.class);	
 	
-	private ConcurrentHashMap<Integer,EndPointRequest> requests = new ConcurrentHashMap<Integer,EndPointRequest>(); 
-	
-    DefaultHttpClient httpclient;	
-	public DefaultHttpClient getHttpClient() {
-	
-		return httpclient;
-	}
-
 	public EndPointService (Server server) {
 		super(server);
-
-		httpclient = new DefaultHttpClient();
-
 	}	
 
 	public void gotRequest(RequestMsg msg) {
 
 		if(logger.isDebugEnabled())
 			logger.debug("http request message from " + msg.getReplyTo());
-		
-		getServer().getExecutor().execute(new EndPointRequest(this,msg,getNeighborSocket()));
+				
+		getServer().getNeighborService().addNeighbor(msg);
+		getServer().getExecutor().execute(new EndPointRequest(this,msg,getNeighborCom()));
 
 	}
 	

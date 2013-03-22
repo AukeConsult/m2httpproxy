@@ -5,6 +5,10 @@ import no.auke.m2.proxy.dataelements.RequestMsg;
 
 public class NoNeighborCom extends INeighborCom {
 
+	private String clientid;
+	public NoNeighborCom(String clientid) {
+		this.clientid=clientid;
+	}
 	@Override
 	public boolean isRunning() {
 		return false;
@@ -25,7 +29,7 @@ public class NoNeighborCom extends INeighborCom {
 
 	@Override
 	public String getClientid() {
-		return "";
+		return clientid;
 	}
 
 }

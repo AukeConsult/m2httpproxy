@@ -21,7 +21,7 @@ public abstract class IServiceBase implements Runnable {
 	}
 	
 	private INeighborCom neighborCom;
-	public INeighborCom getNeighborSocket() {
+	public INeighborCom getNeighborCom() {
 	
 		return neighborCom;
 	}
@@ -50,7 +50,7 @@ public abstract class IServiceBase implements Runnable {
 
     	} else {
 
-    		neighborCom = new NoNeighborCom();
+    		neighborCom = new NoNeighborCom(server.getClientid());
     		logger.info("No m2 network client running, http request is done locally");
     		
     	}

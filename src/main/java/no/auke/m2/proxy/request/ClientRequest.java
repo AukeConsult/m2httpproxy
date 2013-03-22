@@ -107,6 +107,8 @@ public class ClientRequest implements Runnable {
 			
 			try {
 
+				logger.debug("got reply");
+				
 				if(logger.isDebugEnabled())
 					logger.debug(new String(reply.getData()));				
 				
